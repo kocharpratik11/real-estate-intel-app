@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+# Expo
+.expo/
+dist/
+web-build/
+# Environment — NEVER commit these
+.env
+.env.local
+.env*.local
+# Native builds
+ios/
+android/
+# OS
+.DS_Store
+*.log
