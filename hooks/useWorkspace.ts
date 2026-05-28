@@ -16,13 +16,11 @@ export function useWorkspaces() {
 
     if (err) { setError(err.message); setLoading(false); return; }
 
-    setWorkspaces(
-      (data ?? []).map((row: any) => ({
-        id:   row.workspaces.id,
-        name: row.workspaces.name,
-        role: row.role,
-      }))
-    );
+    const seen = new Set<string>();
+    const unique = (data ?? [])
+      .map((row: any) => ({ id: row.workspaces.id, name: row.workspaces.name, role: row.role }))
+      .filter((ws: any) => seen.has(ws.id) ? false : (seen.add(ws.id), true));
+    setWorkspaces(unique);
     setLoading(false);
   }, []);
 
