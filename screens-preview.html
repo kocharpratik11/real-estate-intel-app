@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REI — Screen Previews</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    background: #E8EAF0;
+    padding: 40px 24px;
+    min-height: 100vh;
+  }
+  h1 {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #6B7280;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 40px;
+  }
+  .grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 40px;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .phone-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .phone-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6B7280;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+  .phone {
+    width: 375px;
+    height: 812px;
+    background: #FFFFFF;
+    border-radius: 44px;
+    box-shadow:
+      0 0 0 10px #1C1C1E,
+      0 0 0 12px #3A3A3C,
+      0 30px 80px rgba(0,0,0,0.35);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  /* notch */
+  .phone::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 126px; height: 34px;
+    background: #1C1C1E;
+    border-radius: 0 0 20px 20px;
+    z-index: 100;
+  }
+  .screen {
+    flex: 1;
+    background: #F7F8FC;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding-top: 44px;
+  }
+  .scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .scroll-area::-webkit-scrollbar { display: none; }
+
+  /* ── Tab Bar ── */
+  .tab-bar {
+    height: 80px;
+    background: #FFFFFF;
+    border-top: 1px solid #E5E8F2;
+    display: flex;
+    align-items: flex-start;
+    padding-top: 10px;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.04);
+    flex-shrink: 0;
+  }
+  .tab-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+  }
+  .tab-emoji { font-size: 20px; }
+  .tab-lbl   { font-size: 10px; font-weight: 500; color: #9CA3AF; }
+  .tab-lbl.active { color: #4F73FF; }
+  .tab-emoji.active { opacity: 1; }
+  .tab-emoji.inactive { opacity: 0.4; }
+
+  /* ── Shared ── */
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 16px;
+    margin-bottom: 4px;
+  }
+  .section-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: #9CA3AF;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+  .see-all { font-size: 10px; color: #4F73FF; }
+
+  /* ─────────────────────────────────────────
+     HOME SCREEN
+  ───────────────────────────────────────── */
+  .home-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 16px 16px 8px;
+  }
+  .greeting { font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 6px; }
+  .workspace-pill {
+    background: #F0F4FF;
+    border: 1px solid #C7D2FE;
+    border-radius: 13px;
+    padding: 4px 10px;
+    display: inline-block;
+  }
+  .workspace-text { font-size: 10px; font-weight: 600; color: #4F73FF; }
+  .bell-wrap { position: relative; }
+  .bell-icon { font-size: 20px; }
+  .bell-dot {
+    position: absolute; top: 0; right: 0;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #DC2626;
+  }
+
+  /* AI Hero Card */
+  .ai-hero {
+    margin: 8px 16px 0;
+    background: #EEF2FF;
+    border: 1px solid #C7D2FE;
+    border-radius: 16px;
+    padding: 16px;
+  }
+  .ai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #4F73FF;
+    border-radius: 6px;
+    padding: 3px 8px;
+    margin-bottom: 10px;
+  }
+  .ai-badge-text { font-size: 9px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
+  .ai-title { font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 6px; line-height: 1.4; }
+  .ai-body  { font-size: 11px; color: #374151; margin-bottom: 12px; line-height: 1.5; }
+  .ai-actions { display: flex; gap: 8px; }
+  .ai-btn-primary {
+    background: #4F73FF;
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    border: none;
+  }
+  .ai-btn-secondary {
+    background: transparent;
+    border: 1px solid #C7D2FE;
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6366F1;
+  }
+  .ai-dots { display: flex; gap: 5px; align-items: center; margin-top: 12px; }
+  .ai-dot { width: 6px; height: 6px; border-radius: 50%; background: #C7D2FE; }
+  .ai-dot.active { background: #4F73FF; width: 16px; border-radius: 3px; }
+
+  /* Quick Stats */
+  .quick-stats {
+    margin: 16px 16px 0;
+    background: #FFFFFF;
+    border: 1px solid #E5E8F2;
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .stats-row { display: flex; gap: 0; }
+  .stat-item { flex: 1; text-align: center; }
+  .stat-divider { width: 1px; background: #E5E8F2; }
+  .stat-value { font-size: 18px; font-weight: 700; color: #111827; }
+  .stat-label { font-size: 9px; color: #9CA3AF; margin-top: 3px; }
+  .stat-sub   { font-size: 9px; margin-top: 2px; }
+
+  /* Recent Activity */
+  .recent-activity { margin-top: 20px; padding: 0 16px; }
+  .activity-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #FFFFFF;
+    border: 1px solid #E5E8F2;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .act-icon  { font-size: 18px; width: 24px; flex-shrink: 0; }
+  .act-text  { flex: 1; }
+  .act-title { font-size: 13px; font-weight: 600; color: #111827; }
+  .act-sub   { font-size: 10px; color: #9CA3AF; margin-top: 2px; }
+  .act-time  { font-size: 10px; }
+  .act-chevron { font-size: 16px; color: #9CA3AF; }
+
+  /* Health card */
+  .health-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #FFFFFF;
+    border: 1px solid #E5E8F2;
+    border-radius: 12px;
+    margin: 12px 16px 0;
+    padding: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .health-icon  { font-size: 20px; }
+  .health-text  { flex: 1; }
+  .health-lbl   { font-size: 11px; color: #9CA3AF; }
+  .health-val   { font-size: 15px; font-weight: 700; color: #111827; margin-top: 2px; }
+  .health-trend { font-size: 10px; font-weight: 700; color: #059669; }
+  .health-chev  { font-size: 18px; color: #9CA3AF; }
+
+  /* AI Bar */
+  .ai-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #FFFFFF;
+    border-top: 1px solid #E5E8F2;
+    padding: 14px 16px;
+    flex-shrink: 0;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.04);
+  }
+  .ai-input-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #F0F4FF;
+    border: 1.5px solid #C7D2FE;
+    border-radius: 23px;
+    padding: 10px 14px;
+  }
+  .ai-spark { font-size: 14px; font-weight: 700; color: #4F73FF; }
+  .ai-placeholder { font-size: 12px; color: #9CA3AF; }
+  .ai-send {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: #4F73FF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  /* ─────────────────────────────────────────
+     PORTFOLIO SCREEN
+  ───────────────────────────────────────── */
+  .portfolio-header {
+    padding: 20px 16px 4px;
+  }
+  .screen-title { font-size: 22px; font-weight: 700; color: #111827; }
+  .screen-sub   { font-size: 12px; color: #9CA3AF; margin-top: 4px; }
+
+  .search-row { padding: 12px 16px; }
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #FFFFFF;
+    border: 1px solid #E5E8F2;
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .search-icon { font-size: 14px; }
+  .search-placeholder { font-size: 13px; color: #9CA3AF; }
+
+  .summary-strip {
+    display: flex;
+    align-items: center;
+    background: #F0F4FF;
+    border: 1px solid #C7D2FE;
+    border-radius: 12px;
+    margin: 0 16px 16px;
+    padding: 12px 0;
+  }
+  .summary-item { flex: 1; text-align: center; }
+  .summary-value { font-size: 15px; font-weight: 700; color: #111827; }
+  .summary-label { font-size: 9px; color: #9CA3AF; margin-top: 2px; }
+  .summary-divider { width: 1px; height: 32px; background: #E5E8F2; }
+
+  .property-card {
+    background: #FFFFFF;
+    border-radius: 14px;
+    border: 1px solid #E5E8F2;
+    border-left: 4px solid;
+    padding: 16px;
+    margin: 0 16px 10px;
+    position: relative;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .prop-name-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+  .prop-name  { font-size: 15px; font-weight: 700; color: #111827; flex: 1; margin-right: 8px; }
+  .prop-badge {
+    border-radius: 4px;
+    border: 1px solid;
+    padding: 2px 6px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+  }
+  .prop-address { font-size: 11px; color: #9CA3AF; margin-bottom: 2px; }
+  .prop-units   { font-size: 10px; color: #9CA3AF; margin-bottom: 10px; }
+  .bar-track { height: 4px; background: #E5E8F2; border-radius: 2px; overflow: hidden; margin-bottom: 6px; }
+  .bar-fill  { height: 4px; border-radius: 2px; }
+  .prop-bottom { display: flex; justify-content: space-between; align-items: center; }
+  .prop-pct  { font-size: 9px; color: #9CA3AF; }
+  .prop-cf   { font-size: 13px; font-weight: 700; }
+  .prop-chevron { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 18px; color: #9CA3AF; }
+
+  .fab {
+    position: absolute;
+    bottom: 96px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #4F73FF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(79,115,255,0.4);
+    z-index: 10;
+  }
+
+  /* ─────────────────────────────────────────
+     ALERTS SCREEN
+  ───────────────────────────────────────── */
+  .alerts-header { padding: 20px 16px 8px; }
+  .tabs-row {
+    display: flex;
+    border-bottom: 1px solid #E5E8F2;
+    margin: 0 16px 16px;
+  }
+  .tab-pill {
+    padding: 10px 14px;
+    font-size: 14px;
+    color: #9CA3AF;
+    border-bottom: 2px solid transparent;
+  }
+  .tab-pill.active {
+    color: #4F73FF;
+    font-weight: 600;
+    border-bottom-color: #4F73FF;
+  }
+  .alert-card {
+    border-radius: 12px;
+    border: 1px solid;
+    padding: 16px;
+    margin: 0 16px 12px;
+  }
+  .alert-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .alert-badge {
+    border-radius: 4px;
+    border: 1px solid;
+    padding: 2px 6px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .alert-time { font-size: 10px; color: #9CA3AF; }
+  .alert-title { font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 6px; line-height: 1.4; }
+  .alert-body  { font-size: 12px; color: #374151; line-height: 1.5; margin-bottom: 12px; }
+  .alert-footer { display: flex; justify-content: space-between; align-items: center; }
+  .alert-action { font-size: 12px; font-weight: 600; }
+  .alert-prop   { font-size: 10px; color: #9CA3AF; }
+
+  /* ─────────────────────────────────────────
+     MORE SCREEN
+  ───────────────────────────────────────── */
+  .more-header { padding: 20px 16px 8px; }
+  .profile-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #FFFFFF;
+    border: 1px solid #E5E8F2;
+    border-radius: 14px;
+    margin: 0 16px 20px;
+    padding: 16px;
+  }
+  .profile-avatar {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: #4F73FF;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; color: #fff;
+    flex-shrink: 0;
+  }
+  .profile-info { flex: 1; }
+  .profile-name  { font-size: 15px; font-weight: 700; color: #111827; }
+  .profile-email { font-size: 11px; color: #9CA3AF; margin-top: 2px; }
+  .edit-btn {
+    padding: 6px 12px;
+    border: 1px solid #E5E8F2;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #374151;
+    flex-shrink: 0;
+  }
+  .more-section { margin: 0 16px 20px; }
+  .more-section-title {
+    font-size: 9px; font-weight: 700;
+    color: #9CA3AF; letter-spacing: 0.8px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .more-section-card {
+    background: #FFFFFF;
+    border: 1px solid #E5E8F2;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .more-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #E5E8F2;
+  }
+  .more-row:last-child { border-bottom: none; }
+  .more-row-icon  { font-size: 16px; width: 22px; flex-shrink: 0; }
+  .more-row-text  { flex: 1; }
+  .more-row-label { font-size: 14px; color: #111827; }
+  .more-row-sub   { font-size: 11px; color: #9CA3AF; margin-top: 2px; }
+  .more-row-chev  { font-size: 18px; color: #9CA3AF; }
+  .more-row-danger .more-row-label { color: #DC2626; }
+  .version-text { text-align: center; font-size: 11px; color: #9CA3AF; margin: 8px 0 40px; }
+</style>
+</head>
+<body>
+<h1>Real Estate Intel — Screen Previews</h1>
+
+<div class="grid">
+
+  <!-- ══════════════ HOME ══════════════ -->
+  <div class="phone-wrap">
+    <div class="phone-label">Home</div>
+    <div class="phone">
+      <div class="screen" style="background:#F7F8FC;">
+        <!-- AI Bar is positioned above tab bar -->
+        <div style="flex:1; display:flex; flex-direction:column;">
+          <div class="scroll-area">
+            <!-- Header -->
+            <div class="home-header">
+              <div>
+                <div class="greeting">Good morning, Pratik</div>
+                <div class="workspace-pill">
+                  <span class="workspace-text">⊞  Kochar Properties  ▾</span>
+                </div>
+              </div>
+              <div class="bell-wrap">
+                <span class="bell-icon">🔔</span>
+                <div class="bell-dot"></div>
+              </div>
+            </div>
+
+            <!-- AI Hero Card -->
+            <div class="ai-hero">
+              <div class="ai-badge"><span class="ai-badge-text">✦ AI INSIGHT  1 / 3</span></div>
+              <div class="ai-title">3 tenants owe rent this month</div>
+              <div class="ai-body">Potential recovery: $5,550  •  Avg 14 days overdue</div>
+              <div class="ai-actions">
+                <div class="ai-btn-primary">View Ledger</div>
+                <div class="ai-btn-secondary">Dismiss</div>
+              </div>
+              <div class="ai-dots">
+                <div class="ai-dot active"></div>
+                <div class="ai-dot"></div>
+                <div class="ai-dot"></div>
+              </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="quick-stats">
+              <div class="stats-row">
+                <div class="stat-item">
+                  <div class="stat-value" style="color:#059669;">$12.4k</div>
+                  <div class="stat-label">Monthly Revenue</div>
+                  <div class="stat-sub" style="color:#059669;">↑ 3%</div>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                  <div class="stat-value">87%</div>
+                  <div class="stat-label">Collection Rate</div>
+                  <div class="stat-sub" style="color:#9CA3AF;">of 8 units</div>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                  <div class="stat-value" style="color:#DC2626;">1</div>
+                  <div class="stat-label">Vacancies</div>
+                  <div class="stat-sub" style="color:#D97706;">47 days</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="recent-activity">
+              <div class="section-header" style="margin-bottom:8px;">
+                <span class="section-label">Recent Activity</span>
+                <span class="see-all">See all →</span>
+              </div>
+              <div class="activity-row">
+                <span class="act-icon">💚</span>
+                <div class="act-text">
+                  <div class="act-title">Payment received</div>
+                  <div class="act-sub">Unit 1A  •  Maple St  •  $1,850</div>
+                </div>
+                <span class="act-time" style="color:#059669;">May 26</span>
+                <span class="act-chevron">›</span>
+              </div>
+              <div class="activity-row">
+                <span class="act-icon">💚</span>
+                <div class="act-text">
+                  <div class="act-title">Payment received</div>
+                  <div class="act-sub">Unit 2B  •  Oak Ave  •  $2,100</div>
+                </div>
+                <span class="act-time" style="color:#059669;">May 24</span>
+                <span class="act-chevron">›</span>
+              </div>
+              <div class="activity-row">
+                <span class="act-icon">⚠️</span>
+                <div class="act-text">
+                  <div class="act-title">Payment received</div>
+                  <div class="act-sub">Unit 3A  •  Pine Ridge  •  $1,600</div>
+                </div>
+                <span class="act-time" style="color:#D97706;">May 22</span>
+                <span class="act-chevron">›</span>
+              </div>
+            </div>
+
+            <!-- Health Card -->
+            <div class="health-card">
+              <span class="health-icon">📊</span>
+              <div class="health-text">
+                <div class="health-lbl">Portfolio health score</div>
+                <div class="health-val">74 / 100</div>
+              </div>
+              <span class="health-trend">↑ 3 pts</span>
+              <span class="health-chev">›</span>
+            </div>
+
+            <div style="height:20px;"></div>
+          </div>
+
+          <!-- AI Ask Bar -->
+          <div class="ai-bar">
+            <div class="ai-input-wrap">
+              <span class="ai-spark">✦</span>
+              <span class="ai-placeholder">Ask anything about your portfolio...</span>
+            </div>
+            <div class="ai-send">↑</div>
+          </div>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+          <div class="tab-item">
+            <span class="tab-emoji active">⌂</span>
+            <span class="tab-lbl active">Home</span>
+          </div>
+          <div class="tab-item">
+            <span class="tab-emoji inactive">⊞</span>
+            <span class="tab-lbl">Portfolio</span>
+          </div>
+          <div class="tab-item">
+            <span class="tab-emoji inactive">🔔</span>
+            <span class="tab-lbl">Alerts</span>
+          </div>
+          <div class="tab-item">
+            <span class="tab-emoji inactive">☰</span>
+            <span class="tab-lbl">More</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ PORTFOLIO ══════════════ -->
+  <div class="phone-wrap">
+    <div class="phone-label">Portfolio</div>
+    <div class="phone">
+      <div class="screen" style="background:#F7F8FC; position:relative;">
+        <div class="scroll-area">
+          <!-- Header -->
+          <div class="portfolio-header">
+            <div class="screen-title">Portfolio</div>
+            <div class="screen-sub">3 properties  •  18 units total</div>
+          </div>
+
+          <!-- Search -->
+          <div class="search-row">
+            <div class="search-bar">
+              <span class="search-icon">🔍</span>
+              <span class="search-placeholder">Search properties...</span>
+            </div>
+          </div>
+
+          <!-- Summary Strip -->
+          <div class="summary-strip">
+            <div class="summary-item">
+              <div class="summary-value" style="color:#059669;">+$6.2k</div>
+              <div class="summary-label">/ mo cash flow</div>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+              <div class="summary-value">87%</div>
+              <div class="summary-label">collected</div>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+              <div class="summary-value" style="color:#DC2626;">1</div>
+              <div class="summary-label">vacancy</div>
+            </div>
+          </div>
+
+          <!-- Property: Critical -->
+          <div class="property-card" style="border-left-color:#DC2626;">
+            <div class="prop-name-row">
+              <span class="prop-name">Maple Street</span>
+              <span class="prop-badge" style="color:#DC2626; background:#FEF2F2; border-color:#FECACA;">Needs attention</span>
+            </div>
+            <div class="prop-address">742 Maple St, Austin</div>
+            <div class="prop-units">6 units</div>
+            <div class="bar-track"><div class="bar-fill" style="width:55%; background:#DC2626;"></div></div>
+            <div class="prop-bottom">
+              <span class="prop-pct">55% collected</span>
+              <span class="prop-cf" style="color:#059669;">↑ $2,100/mo</span>
+            </div>
+            <span class="prop-chevron">›</span>
+          </div>
+
+          <!-- Property: Warning -->
+          <div class="property-card" style="border-left-color:#D97706;">
+            <div class="prop-name-row">
+              <span class="prop-name">Pine Ridge Apts</span>
+              <span class="prop-badge" style="color:#D97706; background:#FFFBEB; border-color:#FDE68A;">Some overdue</span>
+            </div>
+            <div class="prop-address">22 Pine Ridge Rd, Austin</div>
+            <div class="prop-units">8 units</div>
+            <div class="bar-track"><div class="bar-fill" style="width:75%; background:#D97706;"></div></div>
+            <div class="prop-bottom">
+              <span class="prop-pct">75% collected</span>
+              <span class="prop-cf" style="color:#059669;">↑ $1,800/mo</span>
+            </div>
+            <span class="prop-chevron">›</span>
+          </div>
+
+          <!-- Property: Healthy -->
+          <div class="property-card" style="border-left-color:#059669;">
+            <div class="prop-name-row">
+              <span class="prop-name">Oak Avenue</span>
+              <span class="prop-badge" style="color:#059669; background:#ECFDF5; border-color:#A7F3D0;">All paid</span>
+            </div>
+            <div class="prop-address">88 Oak Ave, Austin</div>
+            <div class="prop-units">4 units</div>
+            <div class="bar-track"><div class="bar-fill" style="width:100%; background:#059669;"></div></div>
+            <div class="prop-bottom">
+              <span class="prop-pct">100% collected</span>
+              <span class="prop-cf" style="color:#059669;">↑ $2,300/mo</span>
+            </div>
+            <span class="prop-chevron">›</span>
+          </div>
+
+          <div style="height:100px;"></div>
+        </div>
+
+        <!-- FAB -->
+        <div class="fab">+</div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+          <div class="tab-item">
+            <span class="tab-emoji inactive">⌂</span>
+            <span class="tab-lbl">Home</span>
+          </div>
+          <div class="tab-item">
+            <span class="tab-emoji active">⊞</span>
+            <span class="tab-lbl active">Portfolio</span>
+          </div>
+          <div class="tab-item">
+            <span class="tab-emoji inactive">🔔</span>
+            <span class="tab-lbl">Alerts</span>
+          </div>
+          <div class="tab-item">
+            <span class="tab-emoji inactive">☰</span>
+            <span class="tab-lbl">More</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ ALERTS ══════════════ -->
+  <div class="phone-wrap">
+    <div class="phone-label">Alerts (Intelligence)</div>
+    <div class="phone">
+      <div class="screen" style="background:#F7F8FC;">
+        <div class="scroll-area">
+          <div class="alerts-header">
+            <div class="screen-title">Intelligence</div>
+            <div class="screen-sub">5 alerts this month</div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="tabs-row">
+            <div class="tab-pill active">Alerts</div>
+            <div class="tab-pill">Optimizer</div>
+            <div class="tab-pill">Scenarios</div>
+          </div>
+
+          <!-- Emergency -->
+          <div class="alert-card" style="background:#FEF2F2; border-color:#FECACA;">
+            <div class="alert-top">
+              <span class="alert-badge" style="color:#DC2626; background:#FEF2F2; border-color:#FECACA;">EMERGENCY</span>
+              <span class="alert-time">Today</span>
+            </div>
+            <div class="alert-title">Unit 3B vacant 47 days</div>
+            <div class="alert-body">Losing $1,800/mo. Market avg vacancy is 18 days.</div>
+            <div class="alert-footer">
+              <span class="alert-action" style="color:#DC2626;">List Unit Now →</span>
+              <span class="alert-prop">Maple Street</span>
+            </div>
+          </div>
+
+          <!-- Warning 1 -->
+          <div class="alert-card" style="background:#FFFBEB; border-color:#FDE68A;">
+            <div class="alert-top">
+              <span class="alert-badge" style="color:#D97706; background:#FFFBEB; border-color:#FDE68A;">WARNING</span>
+              <span class="alert-time">2d ago</span>
+            </div>
+            <div class="alert-title">2 leases expire in 28 days</div>
+            <div class="alert-body">Maple 1B & Oak 2A. Send renewal notices now.</div>
+            <div class="alert-footer">
+              <span class="alert-action" style="color:#D97706;">Send Renewals →</span>
+              <span class="alert-prop">Portfolio</span>
+            </div>
+          </div>
+
+          <!-- Warning 2 -->
+          <div class="alert-card" style="background:#FFFBEB; border-color:#FDE68A;">
+            <div class="alert-top">
+              <span class="alert-badge" style="color:#D97706; background:#FFFBEB; border-color:#FDE68A;">WARNING</span>
+              <span class="alert-time">3d ago</span>
+            </div>
+            <div class="alert-title">Expense ratio at 62%</div>
+            <div class="alert-body">Pine Ridge above 50% target. Review utility costs.</div>
+            <div class="alert-footer">
+              <span class="alert-action" style="color:#D97706;">View Breakdown →</span>
+              <span class="alert-prop">Pine Ridge</span>
+            </div>
+          </div>
+
+          <!-- Info 1 -->
+          <div class="alert-card" style="background:#F0F4FF; border-color:#C7D2FE;">
+            <div class="alert-top">
+              <span class="alert-badge" style="color:#4F73FF; background:#EEF2FF; border-color:#C7D2FE;">INFO</span>
+              <span class="alert-time">5d ago</span>
+            </div>
+            <div class="alert-title">Refi opportunity: Maple St</div>
+            <div class="alert-body">Current rate 6.2% vs your 7.8%. Save $340/mo.</div>
+            <div class="alert-footer">
+              <span class="alert-action" style="color:#4F73FF;">View Analysis →</span>
+              <span class="alert-prop">Maple Street</span>
+            </div>
+          </div>
+
+          <!-- Info 2 -->
+          <div class="alert-card" style="background:#F0F4FF; border-color:#C7D2FE;">
+            <div class="alert-top">
+              <span class="alert-badge" style="color:#4F73FF; background:#EEF2FF; border-color:#C7D2FE;">INFO</span>
+              <span class="alert-time">1wk ago</span>
+            </div>
+            <div class="alert-title">Oak Ave: 11.4% ROE — top performer</div>
+            <div class="alert-body">Full occupancy + 2023 refi driving outperformance.</div>
+            <div class="alert-footer">
+              <span class="alert-action" style="color:#4F73FF;">View Details →</span>
+              <span class="alert-prop">Oak Avenue</span>
+            </div>
+          </div>
+
+          <div style="height:40px;"></div>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+          <div class="tab-item">
+            <span class="tab-emoji inactive">⌂</span>
+            <span class="tab-lbl">Home</span>
+          </div>
+          <div class="tab-item">
+            <span class="tab-emoji inactive">⊞</span>
+            <span class="tab-lbl">Portfolio</span>
+          </div>
+          <div class="tab-item">
+            <span class="tab-emoji active">🔔</span>
+            <span class="tab-lbl active">Alerts</span>
+          </div>
+          <div class="tab-item">
+            <span class="tab-emoji inactive">☰</span>
+            <span class="tab-lbl">More</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ MORE ══════════════ -->
+  <div class="phone-wrap">
+    <div class="phone-label">More</div>
+    <div class="phone">
+      <div class="screen" style="background:#F7F8FC;">
+        <div class="scroll-area">
+          <div class="more-header">
+            <div class="screen-title">More</div>
+          </div>
+
+          <!-- Profile Card -->
+          <div class="profile-card">
+            <div class="profile-avatar">PK</div>
+            <div class="profile-info">
+              <div class="profile-name">Pratik Kochar</div>
+              <div class="profile-email">kocharpratik11@gmail.com</div>
+            </div>
+            <div class="edit-btn">Edit</div>
+          </div>
+
+          <!-- Workspace -->
+          <div class="more-section">
+            <div class="more-section-title">Workspace</div>
+            <div class="more-section-card">
+              <div class="more-row">
+                <span class="more-row-icon">⊞</span>
+                <div class="more-row-text">
+                  <div class="more-row-label">Kochar Properties</div>
+                  <div class="more-row-sub">8 properties  •  Owner</div>
+                </div>
+                <span class="more-row-chev">›</span>
+              </div>
+              <div class="more-row">
+                <span class="more-row-icon">+</span>
+                <div class="more-row-text">
+                  <div class="more-row-label">Add / Join Workspace</div>
+                  <div class="more-row-sub">Create or accept an invite</div>
+                </div>
+                <span class="more-row-chev">›</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preferences -->
+          <div class="more-section">
+            <div class="more-section-title">Preferences</div>
+            <div class="more-section-card">
+              <div class="more-row">
+                <span class="more-row-icon">🔔</span>
+                <div class="more-row-text">
+                  <div class="more-row-label">Notifications</div>
+                  <div class="more-row-sub">Alerts, reminders, updates</div>
+                </div>
+                <span class="more-row-chev">›</span>
+              </div>
+              <div class="more-row">
+                <span class="more-row-icon">💵</span>
+                <div class="more-row-text">
+                  <div class="more-row-label">Currency</div>
+                  <div class="more-row-sub">USD — US Dollar</div>
+                </div>
+                <span class="more-row-chev">›</span>
+              </div>
+              <div class="more-row">
+                <span class="more-row-icon">📅</span>
+                <div class="more-row-text">
+                  <div class="more-row-label">Date Format</div>
+                  <div class="more-row-sub">MM/DD/YYYY</div>
+                </div>
+                <span class="more-row-chev">›</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Support -->
+          <div class="more-section">
+            <div class="more-section-title">Support</div>
+            <div class="more-section-card">
+              <div class="more-row">
+                <span class="more-row-icon">❓</span>
+                <div class="more-row-text"><div class="more-row-label">Help Center</div></div>
+                <span class="more-row-chev">›</span>
+              </div>
+              <div class="more-row">
+                <span class="more-row-icon">💬</span>
+                <div class="more-row-text"><div class="more-row-label">Send Feedback</div></div>
+                <span class="more-row-chev">›</span>
+              </div>
+              <div class="more-row">
+                <span class="more-row-icon">⭐</span>
+                <div class="more-row-text"><div class="more-row-label">Rate the App</div></div>
+                <span class="more-row-chev">›</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Account -->
+          <div class="more-section">
+            <div class="more-section-title">Account</div>
+            <div class="more-section-card">
+              <div class="more-row">
+                <span class="more-row-icon">🔒</span>
+                <div class="more-row-text"><div class="more-row-label">Change Password</div></div>
+                <span class="more-row-chev">›</span>
+              </div>
+              <div class="more-row more-row-danger">
+                <span class="more-row-icon">🚪</span>
+                <div class="more-row-text"><div class="more-row-label" style="color:#DC2626;">Sign Out</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="version-text">Real Estate Intel  v0.1.0</div>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+          <div class="tab-item">
+            <span class="tab-emoji inactive">⌂</span>
+            <span class="tab-lbl">Home</span>
+          </div>
+          <div class="tab-item">
+            <span class="tab-emoji inactive">⊞</span>
+            <span class="tab-lbl">Portfolio</span>
+          </div>
+          <div class="tab-item">
+            <span class="tab-emoji inactive">🔔</span>
+            <span class="tab-lbl">Alerts</span>
+          </div>
+          <div class="tab-item">
+            <span class="tab-emoji active">☰</span>
+            <span class="tab-lbl active">More</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
