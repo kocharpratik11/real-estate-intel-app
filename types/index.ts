@@ -110,6 +110,17 @@ export type PortfolioSummary = {
   health_score: number;       // 0–100
 };
 
+export type AppAlert = {
+  id:       string;
+  severity: 'emergency' | 'warning' | 'info';
+  title:    string;
+  body:     string;
+  action:   string;
+  property: string;
+  time:     string;
+  route?:   string;
+};
+
 // Ledger event (derived client-side from RentPayment rows)
 export type LedgerEvent = {
   date: string;
