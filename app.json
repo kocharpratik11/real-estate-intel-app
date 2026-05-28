@@ -7,22 +7,18 @@
     "icon": "./assets/images/icon.png",
     "scheme": "rei",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F172A"
-    },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.rei.app"
+      "bundleIdentifier": "com.rei.app",
+      "newArchEnabled": true
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0F172A"
       },
-      "package": "com.rei.app"
+      "package": "com.rei.app",
+      "newArchEnabled": true
     },
     "plugins": [
       "expo-router",
