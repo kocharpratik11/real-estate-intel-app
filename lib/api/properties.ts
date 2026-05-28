@@ -32,10 +32,17 @@ export async function getPropertyUnits(propertyId: string): Promise<Unit[]> {
 }
 
 export async function getActiveLeases(propertyId: string): Promise<Lease[]> {
+  const { data: units } = await supabase
+    .from('units')
+    .select('id')
+    .eq('property_id', propertyId);
+  const unitIds = (units ?? []).map((u: any) => u.id);
+  if (!unitIds.length) return [];
+
   const { data, error } = await supabase
     .from('leases')
     .select('id, unit_id, monthly_rent, start_date, end_date, status, units(label)')
-    .eq('property_id', propertyId)
+    .in('unit_id', unitIds)
     .eq('status', 'active');
   if (error) throw error;
   return (data ?? []) as Lease[];
