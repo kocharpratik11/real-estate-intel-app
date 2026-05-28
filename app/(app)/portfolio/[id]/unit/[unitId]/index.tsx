@@ -94,7 +94,7 @@ export default function UnitDetailScreen() {
               <Text style={s.avatarText}>{initials.toUpperCase()}</Text>
             </View>
             <Text style={s.tenantName}>{tenantName}</Text>
-            <Text style={s.tenantSub}>{unit?.label}  •  {unit?.bedrooms}BR</Text>
+            <Text style={s.tenantSub}>{unit?.label}</Text>
 
             {/* Contact actions */}
             <View style={s.contactRow}>
@@ -131,7 +131,7 @@ export default function UnitDetailScreen() {
           <View style={s.vacantCard}>
             <Text style={s.vacantIcon}>🏠</Text>
             <Text style={s.vacantTitle}>Unit is vacant</Text>
-            <Text style={s.vacantSub}>{unit?.label}  •  {unit?.bedrooms ?? '?'} bed  •  {unit?.square_feet ?? '?'} sq ft</Text>
+            <Text style={s.vacantSub}>{unit?.label}</Text>
           </View>
         )}
 
@@ -206,10 +206,7 @@ export default function UnitDetailScreen() {
           <Text style={s.sectionLabel}>UNIT DETAILS</Text>
           <View style={s.card}>
             {[
-              ['Unit',        unit?.label],
-              ['Bedrooms',    unit?.bedrooms ?? '—'],
-              ['Bathrooms',   unit?.bathrooms ?? '—'],
-              ['Square Feet', unit?.square_feet ? `${unit.square_feet} sq ft` : '—'],
+              ['Unit', unit?.label],
             ].map(([label, val]) => (
               <View key={String(label)} style={s.detailRow}>
                 <Text style={s.detailLabel}>{label}</Text>

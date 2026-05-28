@@ -21,9 +21,6 @@ export type Unit = {
   id: string;
   property_id: string;
   label: string;
-  bedrooms: number | null;
-  bathrooms: number | null;
-  square_feet: number | null;
 };
 
 export type Tenant = {
