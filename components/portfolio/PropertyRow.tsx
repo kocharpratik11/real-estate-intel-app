@@ -89,6 +89,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom:    10,
     position:        'relative',
+    shadowColor:     '#000',
+    shadowOffset:    { width: 0, height: 1 },
+    shadowOpacity:   0.05,
+    shadowRadius:    4,
+    elevation:       2,
   },
   nameRow: {
     flexDirection:  'row',

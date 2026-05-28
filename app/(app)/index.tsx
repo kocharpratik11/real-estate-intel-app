@@ -255,6 +255,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical:   14,
     gap:             10,
+    shadowColor:     '#000',
+    shadowOffset:    { width: 0, height: -2 },
+    shadowOpacity:   0.04,
+    shadowRadius:    8,
+    elevation:       4,
   },
   aiInputWrap: {
     flex:            1,

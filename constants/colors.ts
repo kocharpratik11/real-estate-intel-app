@@ -1,36 +1,43 @@
-// Design tokens — matches Figma screens exactly
+// Light theme design tokens
 export const Colors = {
-  bg:       '#0F172A',
-  card:     '#1E293B',
-  card2:    '#0F1E35',
-  border:   '#334155',
+  // Surfaces
+  bg:       '#F7F8FC',
+  card:     '#FFFFFF',
+  card2:    '#EEF2FF',
+  border:   '#E5E8F2',
 
-  blue:     '#3B82F6',
-  purple:   '#8B5CF6',
+  // Brand / actions
+  blue:     '#4F73FF',
+  purple:   '#7C3AED',
   indigo:   '#6366F1',
 
-  text:     '#F1F5F9',
-  textSub:  '#CBD5E1',
-  textMuted:'#94A3B8',
+  // Text
+  text:     '#111827',
+  textSub:  '#374151',
+  textMuted:'#9CA3AF',
 
-  green:    '#10B981',
-  greenBg:  '#052E16',
-  greenBd:  '#166534',
+  // Status — green
+  green:    '#059669',
+  greenBg:  '#ECFDF5',
+  greenBd:  '#A7F3D0',
 
-  yellow:   '#F59E0B',
-  yellowBg: '#1C1400',
-  yellowBd: '#854D0E',
+  // Status — yellow/amber
+  yellow:   '#D97706',
+  yellowBg: '#FFFBEB',
+  yellowBd: '#FDE68A',
 
-  red:      '#EF4444',
-  redBg:    '#1C0505',
-  redBd:    '#991B1B',
+  // Status — red
+  red:      '#DC2626',
+  redBg:    '#FEF2F2',
+  redBd:    '#FECACA',
 
   white:    '#FFFFFF',
   black:    '#000000',
 
-  aiCard:   '#0D1F3C',
-  aiBorder: '#2563EB',
-  aiDark:   '#0A1628',
+  // AI / highlight surfaces
+  aiCard:   '#EEF2FF',
+  aiBorder: '#C7D2FE',
+  aiDark:   '#F0F4FF',
 } as const;
 
 export type Color = keyof typeof Colors;
