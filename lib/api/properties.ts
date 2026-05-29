@@ -48,81 +48,131 @@ export async function getActiveLeases(propertyId: string): Promise<Lease[]> {
   return (data ?? []) as Lease[];
 }
 
+async function countVacancies(unitIds: string[]): Promise<number> {
+  if (!unitIds.length) return 0;
+  const { data } = await supabase
+    .from('leases')
+    .select('unit_id')
+    .in('unit_id', unitIds)
+    .eq('status', 'active');
+  const occupied = new Set((data ?? []).map((l: any) => l.unit_id));
+  return unitIds.filter(id => !occupied.has(id)).length;
+}
+
+async function sumExpenses(propertyIds: string[], year: number, month: number): Promise<number> {
+  const start = `${year}-${String(month).padStart(2, '0')}-01`;
+  const end   = `${year}-${String(month).padStart(2, '0')}-31`;
+  const { data } = await supabase
+    .from('expenses')
+    .select('amount')
+    .in('property_id', propertyIds)
+    .gte('expense_date', start)
+    .lte('expense_date', end);
+  return (data ?? []).reduce((s: number, e: any) => s + (e.amount ?? 0), 0);
+}
+
 // Lightweight metrics computed from rent_payments
 export async function getPropertyMetrics(
   propertyId: string,
   year: number,
-  month: number
+  month: number,
 ): Promise<PropertyMetrics> {
-  const { data, error } = await supabase
-    .from('rent_payments')
-    .select('amount_due, amount_paid, status, units(label)')
-    .eq('property_id', propertyId)
-    .eq('period_year', year)
-    .eq('period_month', month)
-    .eq('charge_type', 'rent');
-  if (error) throw error;
+  const [rentRes, unitRes] = await Promise.all([
+    supabase
+      .from('rent_payments')
+      .select('amount_due, amount_paid, status')
+      .eq('property_id', propertyId)
+      .eq('period_year', year)
+      .eq('period_month', month)
+      .eq('charge_type', 'rent'),
+    supabase
+      .from('units')
+      .select('id')
+      .eq('property_id', propertyId),
+  ]);
 
-  const rows = data ?? [];
-  const totalDue  = rows.reduce((s, r) => s + (r.amount_due ?? 0), 0);
+  const rows     = rentRes.data ?? [];
+  const unitIds  = (unitRes.data ?? []).map((u: any) => u.id as string);
+  const vacancies = await countVacancies(unitIds);
+
   const totalPaid = rows.reduce((s, r) => s + (r.amount_paid ?? 0), 0);
-  const paid      = rows.filter(r => r.status === 'paid').length;
-  const total     = rows.length;
+  const paid  = rows.filter(r => r.status === 'paid').length;
+  const total = rows.length;
 
   return {
-    property_id:    propertyId,
+    property_id:       propertyId,
     monthly_cash_flow: totalPaid,
     collection_rate:   total > 0 ? paid / total : 0,
-    units_paid:     paid,
-    units_total:    total,
-    current_value:  null,
-    equity:         null,
-    roe:            null,
-    vacancies:      0,
+    units_paid:        paid,
+    units_total:       total,
+    current_value:     null,
+    equity:            null,
+    roe:               null,
+    vacancies,
   };
 }
 
 export async function getPortfolioSummary(
   workspaceId: string,
   year: number,
-  month: number
+  month: number,
 ): Promise<PortfolioSummary> {
-  const [propRes, rentRes] = await Promise.all([
-    supabase
-      .from('properties')
-      .select('id, unit_count')
-      .eq('workspace_id', workspaceId),
+  // 1. Workspace properties
+  const { data: props } = await supabase
+    .from('properties')
+    .select('id, unit_count')
+    .eq('workspace_id', workspaceId);
+
+  const propIds = (props ?? []).map((p: any) => p.id as string);
+
+  if (!propIds.length) {
+    return {
+      total_properties: 0, total_value: 0,
+      monthly_cash_flow: 0, collection_rate: 0,
+      monthly_collected: 0, monthly_expected: 0,
+      net_income: 0, vacancies: 0, longest_vacancy_days: 0, health_score: 0,
+    };
+  }
+
+  // 2. Parallel: rent payments + all units + expenses
+  const [rentRes, unitRes, totalExpenses] = await Promise.all([
     supabase
       .from('rent_payments')
-      .select('amount_due, amount_paid, status, property_id')
-      .in('property_id', (await supabase
-        .from('properties')
-        .select('id')
-        .eq('workspace_id', workspaceId)
-      ).data?.map(p => p.id) ?? [])
+      .select('amount_due, amount_paid, status')
+      .in('property_id', propIds)
       .eq('period_year', year)
       .eq('period_month', month)
       .eq('charge_type', 'rent'),
+    supabase
+      .from('units')
+      .select('id')
+      .in('property_id', propIds),
+    sumExpenses(propIds, year, month).catch(() => 0),
   ]);
 
-  const props = propRes.data ?? [];
-  const rents = rentRes.data ?? [];
+  const rents    = rentRes.data ?? [];
+  const unitIds  = (unitRes.data ?? []).map((u: any) => u.id as string);
+  const vacancies = await countVacancies(unitIds);
 
-  const totalValue = 0; // requires valuations join — loaded separately
-  const collected  = rents.reduce((s, r) => s + (r.amount_paid ?? 0), 0);
-  const expected   = rents.reduce((s, r) => s + (r.amount_due ?? 0), 0);
-  const paid       = rents.filter(r => r.status === 'paid').length;
+  const collected = rents.reduce((s, r) => s + (r.amount_paid ?? 0), 0);
+  const expected  = rents.reduce((s, r) => s + (r.amount_due  ?? 0), 0);
+  const paid      = rents.filter(r => r.status === 'paid').length;
+
+  const collectionRate = rents.length > 0 ? paid / rents.length : 0;
+  const vacancyRate    = unitIds.length  > 0 ? vacancies / unitIds.length : 0;
+  // Health score: 60pts collection + 40pts occupancy
+  const healthScore = Math.round(collectionRate * 60 + (1 - vacancyRate) * 40);
 
   return {
-    total_properties:  props.length,
-    total_value:       totalValue,
-    monthly_cash_flow: collected,
-    collection_rate:   rents.length > 0 ? paid / rents.length : 0,
-    monthly_collected: collected,
-    monthly_expected:  expected,
-    net_income:        0, // requires expenses join
-    vacancies:         0,
-    longest_vacancy_days: 0,
-    health_score:      74, // placeholder until scoring engine is wired
+    total_properties:     propIds.length,
+    total_value:          0,          // requires valuations table
+    monthly_cash_flow:    collected,
+    collection_rate:      collectionRate,
+    monthly_collected:    collected,
+    monthly_expected:     expected,
+    net_income:           collected - totalExpenses,
+    vacancies,
+    longest_vacancy_days: 0,          // requires vacancy-start tracking
+    health_score:         healthScore,
   };
 }

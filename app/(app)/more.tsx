@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Alert as RNAlert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { Colors } from '@/constants/colors';
@@ -53,8 +53,11 @@ export default function MoreScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  const soon = (label: string) => () =>
+    RNAlert.alert(label, 'This feature is not available yet.');
+
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure?', [
+    RNAlert.alert('Sign Out', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Sign Out',
@@ -97,23 +100,23 @@ export default function MoreScreen() {
             sub={workspaceName ? `${roleLabel}` : 'Tap to choose a workspace'}
             onPress={() => router.push('/workspace-picker')}
           />
-          <Row icon="+" label="Add / Join Workspace" sub="Create or accept an invite" onPress={() => {}} />
+          <Row icon="+" label="Add / Join Workspace" sub="Create or accept an invite" onPress={soon('Add / Join Workspace')} />
         </Section>
 
         <Section title="PREFERENCES">
-          <Row icon="🔔" label="Notifications" sub="Alerts, reminders, updates" onPress={() => {}} />
-          <Row icon="💵" label="Currency"      sub="USD — US Dollar"            onPress={() => {}} />
-          <Row icon="📅" label="Date Format"   sub="MM/DD/YYYY"                 onPress={() => {}} />
+          <Row icon="🔔" label="Notifications" sub="Alerts, reminders, updates" onPress={soon('Notifications')} />
+          <Row icon="💵" label="Currency"      sub="USD — US Dollar"            onPress={soon('Currency')} />
+          <Row icon="📅" label="Date Format"   sub="MM/DD/YYYY"                 onPress={soon('Date Format')} />
         </Section>
 
         <Section title="SUPPORT">
-          <Row icon="❓" label="Help Center"   onPress={() => {}} />
-          <Row icon="💬" label="Send Feedback" onPress={() => {}} />
-          <Row icon="⭐" label="Rate the App"  onPress={() => {}} />
+          <Row icon="❓" label="Help Center"   onPress={soon('Help Center')} />
+          <Row icon="💬" label="Send Feedback" onPress={soon('Send Feedback')} />
+          <Row icon="⭐" label="Rate the App"  onPress={soon('Rate the App')} />
         </Section>
 
         <Section title="ACCOUNT">
-          <Row icon="🔒" label="Change Password" onPress={() => {}} />
+          <Row icon="🔒" label="Change Password" onPress={soon('Change Password')} />
           <Row icon="🚪" label="Sign Out"         onPress={handleSignOut} danger />
         </Section>
 
