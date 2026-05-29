@@ -22,18 +22,33 @@ type Insight = {
   onSecondary?: () => void;
 };
 
-const FALLBACK_INSIGHT: Insight = {
-  title:           'Portfolio is up to date',
-  body:            'No urgent actions right now. Pull down to refresh.',
-  primaryAction:   'View Portfolio',
-  onPrimary:       () => router.push('/(app)/portfolio'),
-};
+function makeSummaryInsight(summary: PortfolioSummary | null): Insight {
+  if (!summary || summary.total_properties === 0) {
+    return {
+      title:         'Welcome to REI',
+      body:          'Add your first property to start tracking your portfolio.',
+      primaryAction: 'View Portfolio',
+      onPrimary:     () => router.push('/(app)/portfolio'),
+    };
+  }
+  const pct = Math.round(summary.collection_rate * 100);
+  const title = pct >= 90
+    ? 'Portfolio running smoothly ✓'
+    : `${pct}% rent collected this month`;
+  const vacancyNote = summary.vacancies > 0 ? `  •  ${summary.vacancies} vacant` : '';
+  return {
+    title,
+    body:          `${summary.total_properties} ${summary.total_properties === 1 ? 'property' : 'properties'}  •  $${summary.monthly_collected.toLocaleString()} collected${vacancyNote}`,
+    primaryAction: 'View Portfolio',
+    onPrimary:     () => router.push('/(app)/portfolio'),
+  };
+}
 
 export default function HomeScreen() {
   const [userName,      setUserName]      = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
   const [summary,       setSummary]       = useState<PortfolioSummary | null>(null);
-  const [insights,      setInsights]      = useState<Insight[]>([FALLBACK_INSIGHT]);
+  const [insights,      setInsights]      = useState<Insight[]>([makeSummaryInsight(null)]);
   const [insightIdx,    setInsightIdx]    = useState(0);
   const [activity,      setActivity]      = useState<ActivityItem[]>([]);
   const [aiQuery,       setAiQuery]       = useState('');
@@ -58,7 +73,7 @@ export default function HomeScreen() {
       setInsightIdx(0);
       setAiQuery('');
       setSummary(null);
-      setInsights([FALLBACK_INSIGHT]);
+      setInsights([makeSummaryInsight(null)]);
       setActivity([]);
     }
 
@@ -85,9 +100,8 @@ export default function HomeScreen() {
       primaryAction:   a.action.replace(' →', ''),
       secondaryAction: 'Dismiss',
       onPrimary:       () => { if (a.route) router.push(a.route as any); },
-      onSecondary:     () => {},
     }));
-    setInsights(derived.length > 0 ? derived : [FALLBACK_INSIGHT]);
+    setInsights(derived.length > 0 ? derived : [makeSummaryInsight(summary)]);
     setInsightIdx(0);
 
     // Recent activity filtered to this workspace's properties
@@ -120,6 +134,14 @@ export default function HomeScreen() {
   // Reload every time this screen comes into focus (covers workspace switch + tab return)
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  const dismissInsight = useCallback(() => {
+    setInsights(prev => {
+      const next = prev.filter((_, i) => i !== insightIdx);
+      return next.length > 0 ? next : [makeSummaryInsight(summary)];
+    });
+    setInsightIdx(0);
+  }, [insightIdx, summary]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await load();
@@ -150,7 +172,7 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity onPress={() => router.push('/(app)/alerts')} style={styles.bellBtn}>
             <Text style={styles.bellIcon}>🔔</Text>
-            {insights.some(i => i !== FALLBACK_INSIGHT) && <View style={styles.bellDot} />}
+            {insights.some(i => i.secondaryAction === 'Dismiss') && <View style={styles.bellDot} />}
           </TouchableOpacity>
         </View>
 
@@ -160,6 +182,7 @@ export default function HomeScreen() {
           total={insights.length}
           current={Math.min(insightIdx, insights.length - 1)}
           onDotPress={setInsightIdx}
+          onDismiss={dismissInsight}
         />
 
         {/* Quick Stats */}
