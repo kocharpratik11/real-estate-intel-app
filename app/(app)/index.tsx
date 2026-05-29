@@ -171,10 +171,12 @@ export default function HomeScreen() {
         )}
 
         {/* Recent Activity */}
-        <RecentActivity
-          items={activity.length > 0 ? activity : PLACEHOLDER_ACTIVITY}
-          onSeeAll={() => router.push('/(app)/portfolio')}
-        />
+        {activity.length > 0 && (
+          <RecentActivity
+            items={activity}
+            onSeeAll={() => router.push('/(app)/portfolio')}
+          />
+        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -202,11 +204,6 @@ export default function HomeScreen() {
   );
 }
 
-const PLACEHOLDER_ACTIVITY: ActivityItem[] = [
-  { id: '1', icon: '💚', title: 'Payment received', subtitle: 'Unit 1A  •  $1,850',            time: '2h ago',    timeColor: Colors.green },
-  { id: '2', icon: '🔴', title: 'Expense logged',   subtitle: 'Maple St  •  Repair  •  $450', time: 'Yesterday', timeColor: Colors.textMuted },
-  { id: '3', icon: '⚠️', title: 'Lease expiring',   subtitle: 'Oak Ave 2A  •  28 days',        time: 'Alert',     timeColor: Colors.yellow },
-];
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
