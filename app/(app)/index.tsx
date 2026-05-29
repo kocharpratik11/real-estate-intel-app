@@ -77,7 +77,7 @@ export default function HomeScreen() {
       .select('id, paid_date, amount_paid, status, units(label), properties(name)')
       .not('paid_date', 'is', null)
       .order('paid_date', { ascending: false })
-      .limit(5);
+      .limit(3);
 
     setActivity(
       (data ?? []).map((r: any) => ({
@@ -150,17 +150,6 @@ export default function HomeScreen() {
           onSeeAll={() => router.push('/(app)/portfolio')}
         />
 
-        {/* Portfolio Health */}
-        <TouchableOpacity style={styles.healthCard} activeOpacity={0.8}>
-          <Text style={styles.healthIcon}>📊</Text>
-          <View style={styles.healthText}>
-            <Text style={styles.healthLabel}>Portfolio health score</Text>
-            <Text style={styles.healthValue}>{summary?.health_score ?? 74} / 100</Text>
-          </View>
-          <Text style={styles.healthTrend}>↑ 3 pts</Text>
-          <Text style={styles.chevron}>›</Text>
-        </TouchableOpacity>
-
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -188,9 +177,9 @@ export default function HomeScreen() {
 }
 
 const PLACEHOLDER_ACTIVITY: ActivityItem[] = [
-  { id: '1', icon: '💚', title: 'Payment received', subtitle: 'Unit 1A  •  $1,850', time: '2h ago',     timeColor: Colors.green },
-  { id: '2', icon: '🔴', title: 'Expense logged',   subtitle: 'Maple St  •  Repair  •  $450', time: 'Yesterday', timeColor: Colors.textMuted },
-  { id: '3', icon: '⚠️', title: 'Lease expiring',   subtitle: 'Oak Ave 2A  •  28 days', time: 'Alert',     timeColor: Colors.yellow },
+  { id: '1', icon: '💚', title: 'Payment received', subtitle: 'Unit 1A  •  $1,850',             time: '2h ago',    timeColor: Colors.green },
+  { id: '2', icon: '🔴', title: 'Expense logged',   subtitle: 'Maple St  •  Repair  •  $450',  time: 'Yesterday', timeColor: Colors.textMuted },
+  { id: '3', icon: '⚠️', title: 'Lease expiring',   subtitle: 'Oak Ave 2A  •  28 days',         time: 'Alert',     timeColor: Colors.yellow },
 ];
 
 const styles = StyleSheet.create({
@@ -224,24 +213,6 @@ const styles = StyleSheet.create({
     borderRadius:    4,
     backgroundColor: Colors.red,
   },
-  healthCard: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    backgroundColor: Colors.card,
-    borderRadius:    12,
-    borderWidth:     1,
-    borderColor:     Colors.border,
-    marginHorizontal: 16,
-    marginTop:       12,
-    padding:         14,
-    gap:             10,
-  },
-  healthIcon: { fontSize: 20 },
-  healthText: { flex: 1 },
-  healthLabel: { color: Colors.textMuted, fontSize: 11 },
-  healthValue: { color: Colors.text, fontSize: 15, fontWeight: '700', marginTop: 2 },
-  healthTrend: { color: Colors.green, fontSize: 10, fontWeight: '700' },
-  chevron: { color: Colors.textMuted, fontSize: 18 },
   aiBar: {
     position:        'absolute',
     bottom:          80,
@@ -255,6 +226,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical:   14,
     gap:             10,
+    shadowColor:     '#000',
+    shadowOffset:    { width: 0, height: -2 },
+    shadowOpacity:   0.04,
+    shadowRadius:    8,
+    elevation:       4,
   },
   aiInputWrap: {
     flex:            1,

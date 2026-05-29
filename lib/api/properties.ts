@@ -14,7 +14,7 @@ export async function listProperties(workspaceId: string): Promise<Property[]> {
 export async function getProperty(id: string) {
   const { data, error } = await supabase
     .from('properties')
-    .select('*, units(id, label, bedrooms, bathrooms)')
+    .select('*, units(id, label)')
     .eq('id', id)
     .single();
   if (error) throw error;
@@ -24,7 +24,7 @@ export async function getProperty(id: string) {
 export async function getPropertyUnits(propertyId: string): Promise<Unit[]> {
   const { data, error } = await supabase
     .from('units')
-    .select('id, property_id, label, bedrooms, bathrooms, square_feet')
+    .select('id, property_id, label')
     .eq('property_id', propertyId)
     .order('label');
   if (error) throw error;
@@ -32,10 +32,17 @@ export async function getPropertyUnits(propertyId: string): Promise<Unit[]> {
 }
 
 export async function getActiveLeases(propertyId: string): Promise<Lease[]> {
+  const { data: units } = await supabase
+    .from('units')
+    .select('id')
+    .eq('property_id', propertyId);
+  const unitIds = (units ?? []).map((u: any) => u.id);
+  if (!unitIds.length) return [];
+
   const { data, error } = await supabase
     .from('leases')
     .select('id, unit_id, monthly_rent, start_date, end_date, status, units(label)')
-    .eq('property_id', propertyId)
+    .in('unit_id', unitIds)
     .eq('status', 'active');
   if (error) throw error;
   return (data ?? []) as Lease[];

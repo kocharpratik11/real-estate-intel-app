@@ -14,7 +14,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.bg }}>
-      <StatusBar style="light" backgroundColor={Colors.bg} />
+      <StatusBar style="dark" backgroundColor={Colors.bg} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.bg } }}>
         <Stack.Screen name="(auth)"             options={{ animation: 'fade' }} />
         <Stack.Screen name="(app)"              options={{ animation: 'fade' }} />

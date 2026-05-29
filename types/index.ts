@@ -21,9 +21,6 @@ export type Unit = {
   id: string;
   property_id: string;
   label: string;
-  bedrooms: number | null;
-  bathrooms: number | null;
-  square_feet: number | null;
 };
 
 export type Tenant = {
@@ -111,6 +108,17 @@ export type PortfolioSummary = {
   vacancies: number;
   longest_vacancy_days: number;
   health_score: number;       // 0–100
+};
+
+export type AppAlert = {
+  id:       string;
+  severity: 'emergency' | 'warning' | 'info';
+  title:    string;
+  body:     string;
+  action:   string;
+  property: string;
+  time:     string;
+  route?:   string;
 };
 
 // Ledger event (derived client-side from RentPayment rows)
