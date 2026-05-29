@@ -1,58 +1,46 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   TextInput, StyleSheet, SafeAreaView, RefreshControl,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { getPortfolioSummary } from '@/lib/api/properties';
+import { generateAlerts } from '@/lib/api/alerts';
 import { AIHeroCard } from '@/components/home/AIHeroCard';
 import { QuickStats } from '@/components/home/QuickStats';
 import { RecentActivity, ActivityItem } from '@/components/home/RecentActivity';
 import { Colors } from '@/constants/colors';
 import type { PortfolioSummary } from '@/types';
 
-const NOW  = new Date();
-const YEAR = NOW.getFullYear();
-const MON  = NOW.getMonth() + 1;
-const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+type Insight = {
+  title: string;
+  body: string;
+  primaryAction: string;
+  secondaryAction?: string;
+  onPrimary: () => void;
+  onSecondary?: () => void;
+};
 
-// Static insights — in production these come from /api/portfolio/insights
-const INSIGHTS = [
-  {
-    title:           '3 tenants owe rent this month',
-    body:            'Potential recovery: $5,550  •  Avg 14 days overdue',
-    primaryAction:   'View Ledger',
-    secondaryAction: 'Dismiss',
-    onPrimary:       () => router.push('/(app)/portfolio'),
-    onSecondary:     () => {},
-  },
-  {
-    title:           '1 unit has been vacant 47 days',
-    body:            'Maple St Unit 3B — losing $1,800/mo. Market avg vacancy: 18 days.',
-    primaryAction:   'View Property',
-    secondaryAction: 'Dismiss',
-    onPrimary:       () => router.push('/(app)/portfolio'),
-    onSecondary:     () => {},
-  },
-  {
-    title:           'Refi opportunity — save $340/mo',
-    body:            'Maple St rate: 7.8% vs market 6.2%. Estimated annual saving: $4,080.',
-    primaryAction:   'View Analysis',
-    secondaryAction: 'Dismiss',
-    onPrimary:       () => {},
-    onSecondary:     () => {},
-  },
-];
+const FALLBACK_INSIGHT: Insight = {
+  title:           'Portfolio is up to date',
+  body:            'No urgent actions right now. Pull down to refresh.',
+  primaryAction:   'View Portfolio',
+  onPrimary:       () => router.push('/(app)/portfolio'),
+};
 
 export default function HomeScreen() {
-  const [userName,    setUserName]    = useState('');
+  const [userName,      setUserName]      = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
-  const [summary,     setSummary]     = useState<PortfolioSummary | null>(null);
-  const [insightIdx,  setInsightIdx]  = useState(0);
-  const [activity,    setActivity]    = useState<ActivityItem[]>([]);
-  const [aiQuery,     setAiQuery]     = useState('');
-  const [refreshing,  setRefreshing]  = useState(false);
+  const [summary,       setSummary]       = useState<PortfolioSummary | null>(null);
+  const [insights,      setInsights]      = useState<Insight[]>([FALLBACK_INSIGHT]);
+  const [insightIdx,    setInsightIdx]    = useState(0);
+  const [activity,      setActivity]      = useState<ActivityItem[]>([]);
+  const [aiQuery,       setAiQuery]       = useState('');
+  const [refreshing,    setRefreshing]    = useState(false);
+
+  // Track active workspace so we can reset UI when it changes
+  const activeWsId = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -61,38 +49,76 @@ export default function HomeScreen() {
     const firstName = user.user_metadata?.first_name ?? user.email?.split('@')[0] ?? 'there';
     setUserName(firstName);
 
-    // Load active workspace from secure store (set during workspace-picker)
     const wsName = user.user_metadata?.current_workspace_name ?? 'My Portfolio';
-    setWorkspaceName(wsName);
+    const wsId   = user.user_metadata?.current_workspace_id ?? null;
 
-    const wsId = user.user_metadata?.current_workspace_id;
-    if (wsId) {
-      const s = await getPortfolioSummary(wsId, YEAR, MON).catch(() => null);
-      if (s) setSummary(s);
+    // Reset UI whenever the active workspace changes
+    if (wsId !== activeWsId.current) {
+      activeWsId.current = wsId;
+      setInsightIdx(0);
+      setAiQuery('');
+      setSummary(null);
+      setInsights([FALLBACK_INSIGHT]);
+      setActivity([]);
     }
 
-    // Recent activity from rent_payments
-    const { data } = await supabase
-      .from('rent_payments')
-      .select('id, paid_date, amount_paid, status, units(label), properties(name)')
-      .not('paid_date', 'is', null)
-      .order('paid_date', { ascending: false })
-      .limit(3);
+    setWorkspaceName(wsName);
+    if (!wsId) return;
 
-    setActivity(
-      (data ?? []).map((r: any) => ({
-        id:       r.id,
-        icon:     r.status === 'paid' ? '💚' : '⚠️',
-        title:    'Payment received',
-        subtitle: `${r.units?.label ?? 'Unit'} • ${r.properties?.name ?? ''} • $${r.amount_paid?.toLocaleString()}`,
-        time:     r.paid_date ? new Date(r.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '',
-        timeColor: Colors.green,
-        onPress:  () => {},
-      }))
-    );
+    const now   = new Date();
+    const year  = now.getFullYear();
+    const month = now.getMonth() + 1;
+
+    // Load summary, alerts, and workspace property IDs in parallel
+    const [summary, alerts, propsRes] = await Promise.all([
+      getPortfolioSummary(wsId, year, month).catch(() => null),
+      generateAlerts(wsId, year, month).catch(() => []),
+      supabase.from('properties').select('id').eq('workspace_id', wsId),
+    ]);
+
+    if (summary) setSummary(summary);
+
+    // Convert alerts → insights for the hero card
+    const derived: Insight[] = alerts.map(a => ({
+      title:           a.title,
+      body:            a.body,
+      primaryAction:   a.action.replace(' →', ''),
+      secondaryAction: 'Dismiss',
+      onPrimary:       () => { if (a.route) router.push(a.route as any); },
+      onSecondary:     () => {},
+    }));
+    setInsights(derived.length > 0 ? derived : [FALLBACK_INSIGHT]);
+    setInsightIdx(0);
+
+    // Recent activity filtered to this workspace's properties
+    const propIds = (propsRes.data ?? []).map((p: any) => p.id);
+    if (propIds.length > 0) {
+      const { data } = await supabase
+        .from('rent_payments')
+        .select('id, paid_date, amount_paid, status, units(label), properties(name)')
+        .in('property_id', propIds)
+        .not('paid_date', 'is', null)
+        .order('paid_date', { ascending: false })
+        .limit(3);
+
+      setActivity(
+        (data ?? []).map((r: any) => ({
+          id:        r.id,
+          icon:      r.status === 'paid' ? '💚' : '⚠️',
+          title:     'Payment received',
+          subtitle:  `${r.units?.label ?? 'Unit'} • ${r.properties?.name ?? ''} • $${r.amount_paid?.toLocaleString()}`,
+          time:      r.paid_date ? new Date(r.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '',
+          timeColor: Colors.green,
+          onPress:   () => {},
+        }))
+      );
+    } else {
+      setActivity([]);
+    }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // Reload every time this screen comes into focus (covers workspace switch + tab return)
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -124,15 +150,15 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity onPress={() => router.push('/(app)/alerts')} style={styles.bellBtn}>
             <Text style={styles.bellIcon}>🔔</Text>
-            <View style={styles.bellDot} />
+            {insights.some(i => i !== FALLBACK_INSIGHT) && <View style={styles.bellDot} />}
           </TouchableOpacity>
         </View>
 
         {/* AI Hero Card */}
         <AIHeroCard
-          insight={INSIGHTS[insightIdx]}
-          total={INSIGHTS.length}
-          current={insightIdx}
+          insight={insights[Math.min(insightIdx, insights.length - 1)]}
+          total={insights.length}
+          current={Math.min(insightIdx, insights.length - 1)}
           onDotPress={setInsightIdx}
         />
 
@@ -177,33 +203,33 @@ export default function HomeScreen() {
 }
 
 const PLACEHOLDER_ACTIVITY: ActivityItem[] = [
-  { id: '1', icon: '💚', title: 'Payment received', subtitle: 'Unit 1A  •  $1,850',             time: '2h ago',    timeColor: Colors.green },
-  { id: '2', icon: '🔴', title: 'Expense logged',   subtitle: 'Maple St  •  Repair  •  $450',  time: 'Yesterday', timeColor: Colors.textMuted },
-  { id: '3', icon: '⚠️', title: 'Lease expiring',   subtitle: 'Oak Ave 2A  •  28 days',         time: 'Alert',     timeColor: Colors.yellow },
+  { id: '1', icon: '💚', title: 'Payment received', subtitle: 'Unit 1A  •  $1,850',            time: '2h ago',    timeColor: Colors.green },
+  { id: '2', icon: '🔴', title: 'Expense logged',   subtitle: 'Maple St  •  Repair  •  $450', time: 'Yesterday', timeColor: Colors.textMuted },
+  { id: '3', icon: '⚠️', title: 'Lease expiring',   subtitle: 'Oak Ave 2A  •  28 days',        time: 'Alert',     timeColor: Colors.yellow },
 ];
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   header: {
-    flexDirection:  'row',
-    justifyContent: 'space-between',
-    alignItems:     'flex-start',
+    flexDirection:     'row',
+    justifyContent:    'space-between',
+    alignItems:        'flex-start',
     paddingHorizontal: 16,
-    paddingTop:     16,
-    paddingBottom:  8,
+    paddingTop:        16,
+    paddingBottom:     8,
   },
-  greeting: { color: Colors.text, fontSize: 20, fontWeight: '700', marginBottom: 6 },
+  greeting:       { color: Colors.text, fontSize: 20, fontWeight: '700', marginBottom: 6 },
   workspacePill: {
-    backgroundColor: Colors.aiDark,
-    borderRadius:    13,
-    borderWidth:     1,
-    borderColor:     Colors.aiBorder,
+    backgroundColor:   Colors.aiDark,
+    borderRadius:      13,
+    borderWidth:       1,
+    borderColor:       Colors.aiBorder,
     paddingHorizontal: 10,
     paddingVertical:   4,
   },
   workspaceLabel: { color: Colors.blue, fontSize: 10, fontWeight: '600' },
-  bellBtn: { position: 'relative' },
-  bellIcon: { fontSize: 20 },
+  bellBtn:        { position: 'relative' },
+  bellIcon:       { fontSize: 20 },
   bellDot: {
     position:        'absolute',
     top:             0,
@@ -214,38 +240,38 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.red,
   },
   aiBar: {
-    position:        'absolute',
-    bottom:          80,
-    left:            0,
-    right:           0,
-    flexDirection:   'row',
-    alignItems:      'center',
-    backgroundColor: Colors.card,
-    borderTopWidth:  1,
-    borderTopColor:  Colors.border,
+    position:          'absolute',
+    bottom:            80,
+    left:              0,
+    right:             0,
+    flexDirection:     'row',
+    alignItems:        'center',
+    backgroundColor:   Colors.card,
+    borderTopWidth:    1,
+    borderTopColor:    Colors.border,
     paddingHorizontal: 16,
     paddingVertical:   14,
-    gap:             10,
-    shadowColor:     '#000',
-    shadowOffset:    { width: 0, height: -2 },
-    shadowOpacity:   0.04,
-    shadowRadius:    8,
-    elevation:       4,
+    gap:               10,
+    shadowColor:       '#000',
+    shadowOffset:      { width: 0, height: -2 },
+    shadowOpacity:     0.04,
+    shadowRadius:      8,
+    elevation:         4,
   },
   aiInputWrap: {
-    flex:            1,
-    flexDirection:   'row',
-    alignItems:      'center',
-    backgroundColor: Colors.aiDark,
-    borderRadius:    23,
-    borderWidth:     1.5,
-    borderColor:     Colors.aiBorder,
+    flex:              1,
+    flexDirection:     'row',
+    alignItems:        'center',
+    backgroundColor:   Colors.aiDark,
+    borderRadius:      23,
+    borderWidth:       1.5,
+    borderColor:       Colors.aiBorder,
     paddingHorizontal: 14,
     paddingVertical:   10,
-    gap:             8,
+    gap:               8,
   },
-  aiSpark:  { color: Colors.blue, fontSize: 14, fontWeight: '700' },
-  aiInput:  { flex: 1, color: Colors.text, fontSize: 12 },
+  aiSpark:    { color: Colors.blue, fontSize: 14, fontWeight: '700' },
+  aiInput:    { flex: 1, color: Colors.text, fontSize: 12 },
   aiSendBtn: {
     width:           40,
     height:          40,
