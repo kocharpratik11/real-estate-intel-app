@@ -99,7 +99,13 @@ export default function HomeScreen() {
       body:            a.body,
       primaryAction:   a.action.replace(' →', ''),
       secondaryAction: 'Dismiss',
-      onPrimary:       () => { if (a.route) router.push(a.route as any); },
+      onPrimary:       () => {
+        if (a.route && a.routeParams) {
+          router.push({ pathname: a.route as any, params: a.routeParams });
+        } else if (a.route) {
+          router.push(a.route as any);
+        }
+      },
     }));
     setInsights(derived.length > 0 ? derived : [makeSummaryInsight(summary)]);
     setInsightIdx(0);

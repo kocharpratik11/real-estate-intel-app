@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, SafeAreaView, ActivityIndicator, RefreshControl,
+  StyleSheet, SafeAreaView, ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { getRentPayments, buildLedger } from '@/lib/api/rent';
@@ -20,10 +20,10 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 const fmtAmt = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 export default function RentLedgerScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, initialFilter } = useLocalSearchParams<{ id: string; initialFilter?: string }>();
   const [payments,   setPayments]   = useState<RentPayment[]>([]);
   const [events,     setEvents]     = useState<LedgerEvent[]>([]);
-  const [filter,     setFilter]     = useState<Filter>('all');
+  const [filter,     setFilter]     = useState<Filter>((initialFilter as Filter) ?? 'all');
   const [year,       setYear]       = useState(YEAR);
   const [month,      setMonth]      = useState(MONTH);
   const [loading,    setLoading]    = useState(true);
@@ -147,10 +147,30 @@ export default function RentLedgerScreen() {
                     key={`${e.sourcePayment.id}-${e.type}-${i}`}
                     event={e}
                     onPress={() => {
-                      if (e.type === 'charge' && e.sourcePayment.status !== 'paid') {
-                        setSelected(e.sourcePayment);
-                        setShowSheet(true);
-                      }
+                      if (e.type !== 'charge' || e.sourcePayment.status === 'paid') return;
+                      const unitId = e.sourcePayment.units?.id;
+                      Alert.alert(
+                        e.sourcePayment.units?.label ?? 'Overdue Payment',
+                        `$${e.sourcePayment.amount_due.toLocaleString()} due`,
+                        [
+                          {
+                            text: 'Contact Tenant',
+                            onPress: () => {
+                              if (unitId) {
+                                router.push({
+                                  pathname: '/(app)/portfolio/[id]/unit/[unitId]',
+                                  params: { id: id!, unitId },
+                                });
+                              }
+                            },
+                          },
+                          {
+                            text: 'Record Payment',
+                            onPress: () => { setSelected(e.sourcePayment); setShowSheet(true); },
+                          },
+                          { text: 'Cancel', style: 'cancel' },
+                        ]
+                      );
                     }}
                   />
                 ))
