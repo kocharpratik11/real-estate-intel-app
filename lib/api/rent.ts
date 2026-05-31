@@ -13,7 +13,7 @@ export async function getRentPayments(
       due_date, paid_date,
       amount_due, amount_paid,
       status, charge_type, charge_description, notes,
-      units(label)
+      units(id, label)
     `)
     .eq('property_id', propertyId)
     .order('due_date', { ascending: false });

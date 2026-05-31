@@ -32,7 +32,6 @@ export function QuickStats({ summary, onPress }: Props) {
         <View style={styles.stat}>
           <Text style={styles.value}>{fmt(summary.net_income || summary.monthly_collected)}</Text>
           <Text style={styles.label}>net income</Text>
-          <Text style={styles.trend}>↑ 4.2%</Text>
         </View>
 
         <View style={styles.divider} />

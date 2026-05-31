@@ -38,7 +38,7 @@ export type Lease = {
   start_date: string;
   end_date: string | null;
   status: 'active' | 'expired' | 'terminated';
-  units: { label: string } | null;
+  units: { id: string; label: string } | null;
 };
 
 export type PaymentStatus = 'pending' | 'partial' | 'paid' | 'late' | 'waived';
@@ -58,7 +58,7 @@ export type RentPayment = {
   charge_type: ChargeType;
   charge_description: string | null;
   notes: string | null;
-  units: { label: string } | null;
+  units: { id: string; label: string } | null;
 };
 
 export type Expense = {
@@ -111,14 +111,15 @@ export type PortfolioSummary = {
 };
 
 export type AppAlert = {
-  id:       string;
-  severity: 'emergency' | 'warning' | 'info';
-  title:    string;
-  body:     string;
-  action:   string;
-  property: string;
-  time:     string;
-  route?:   string;
+  id:            string;
+  severity:      'emergency' | 'warning' | 'info';
+  title:         string;
+  body:          string;
+  action:        string;
+  property:      string;
+  time:          string;
+  route?:        string;
+  routeParams?:  Record<string, string>;
 };
 
 // Ledger event (derived client-side from RentPayment rows)

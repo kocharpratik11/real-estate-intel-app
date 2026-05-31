@@ -139,14 +139,22 @@ export default function PropertyDetailScreen() {
         {tab === 'expenses' && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>EXPENSES</Text>
-            <Text style={styles.comingSoon}>Coming in Phase 1.5</Text>
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>🧾</Text>
+              <Text style={styles.emptyTitle}>No expenses yet</Text>
+              <Text style={styles.emptySub}>Expense tracking will appear here once records are added.</Text>
+            </View>
           </View>
         )}
 
         {tab === 'docs' && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>DOCUMENTS</Text>
-            <Text style={styles.comingSoon}>Coming in Phase 2</Text>
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>📁</Text>
+              <Text style={styles.emptyTitle}>No documents yet</Text>
+              <Text style={styles.emptySub}>Leases, inspection reports, and other files will appear here.</Text>
+            </View>
           </View>
         )}
 
@@ -234,6 +242,9 @@ const styles = StyleSheet.create({
   },
   rentCTATitle: { color: Colors.text, fontSize: 15, fontWeight: '600' },
   rentCTASub:   { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
-  errorText:    { color: Colors.red, padding: 16 },
-  comingSoon:   { color: Colors.textMuted, fontSize: 13, marginTop: 8 },
+  errorText: { color: Colors.red, padding: 16 },
+  emptyState: { alignItems: 'center', paddingTop: 48, gap: 8 },
+  emptyIcon:  { fontSize: 36 },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  emptySub:   { fontSize: 13, color: Colors.textMuted, textAlign: 'center', lineHeight: 20, paddingHorizontal: 16 },
 });

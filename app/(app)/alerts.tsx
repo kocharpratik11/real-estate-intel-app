@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, SafeAreaView, ActivityIndicator, RefreshControl,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { generateAlerts } from '@/lib/api/alerts';
 import { Colors } from '@/constants/colors';
@@ -38,7 +38,7 @@ export default function AlertsScreen() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const onRefresh = async () => {
     setRefreshing(true);

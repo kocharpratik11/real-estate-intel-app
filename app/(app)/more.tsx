@@ -1,5 +1,6 @@
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Alert } from 'react-native';
-import { router } from 'expo-router';
+import { useState, useCallback } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Alert as RNAlert } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { Colors } from '@/constants/colors';
 
@@ -27,9 +28,36 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+function initials(name: string) {
+  return name.split(' ').map(w => w[0] ?? '').join('').slice(0, 2).toUpperCase();
+}
+
 export default function MoreScreen() {
+  const [displayName,    setDisplayName]    = useState('');
+  const [email,          setEmail]          = useState('');
+  const [workspaceName,  setWorkspaceName]  = useState('');
+  const [workspaceRole,  setWorkspaceRole]  = useState('');
+
+  const load = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const first = user.user_metadata?.first_name ?? '';
+    const last  = user.user_metadata?.last_name  ?? '';
+    const name  = [first, last].filter(Boolean).join(' ') || user.email?.split('@')[0] || 'User';
+    setDisplayName(name);
+    setEmail(user.email ?? '');
+    setWorkspaceName(user.user_metadata?.current_workspace_name ?? '');
+    setWorkspaceRole(user.user_metadata?.current_workspace_role ?? 'owner');
+  }, []);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const soon = (label: string) => () =>
+    RNAlert.alert(label, 'This feature is not available yet.');
+
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure?', [
+    RNAlert.alert('Sign Out', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Sign Out',
@@ -42,6 +70,8 @@ export default function MoreScreen() {
     ]);
   };
 
+  const roleLabel = workspaceRole.charAt(0).toUpperCase() + workspaceRole.slice(1);
+
   return (
     <SafeAreaView style={styles.root}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -52,11 +82,11 @@ export default function MoreScreen() {
         {/* Profile */}
         <View style={styles.profileCard}>
           <View style={styles.profileAvatar}>
-            <Text style={styles.profileInitials}>PK</Text>
+            <Text style={styles.profileInitials}>{initials(displayName || 'U')}</Text>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>Pratik Kochar</Text>
-            <Text style={styles.profileEmail}>kocharpratik11@gmail.com</Text>
+            <Text style={styles.profileName}>{displayName}</Text>
+            <Text style={styles.profileEmail}>{email}</Text>
           </View>
           <TouchableOpacity style={styles.editBtn}>
             <Text style={styles.editLabel}>Edit</Text>
@@ -64,24 +94,29 @@ export default function MoreScreen() {
         </View>
 
         <Section title="WORKSPACE">
-          <Row icon="⊞" label="Kochar Properties"    sub="8 properties  •  Owner"      onPress={() => router.push('/workspace-picker')} />
-          <Row icon="+"  label="Add / Join Workspace" sub="Create or accept an invite"   onPress={() => {}} />
+          <Row
+            icon="⊞"
+            label={workspaceName || 'Select workspace'}
+            sub={workspaceName ? `${roleLabel}` : 'Tap to choose a workspace'}
+            onPress={() => router.push('/workspace-picker')}
+          />
+          <Row icon="+" label="Add / Join Workspace" sub="Create or accept an invite" onPress={soon('Add / Join Workspace')} />
         </Section>
 
         <Section title="PREFERENCES">
-          <Row icon="🔔" label="Notifications" sub="Alerts, reminders, updates" onPress={() => {}} />
-          <Row icon="💵" label="Currency"      sub="USD — US Dollar"            onPress={() => {}} />
-          <Row icon="📅" label="Date Format"   sub="MM/DD/YYYY"                 onPress={() => {}} />
+          <Row icon="🔔" label="Notifications" sub="Alerts, reminders, updates" onPress={soon('Notifications')} />
+          <Row icon="💵" label="Currency"      sub="USD — US Dollar"            onPress={soon('Currency')} />
+          <Row icon="📅" label="Date Format"   sub="MM/DD/YYYY"                 onPress={soon('Date Format')} />
         </Section>
 
         <Section title="SUPPORT">
-          <Row icon="❓" label="Help Center"    onPress={() => {}} />
-          <Row icon="💬" label="Send Feedback"  onPress={() => {}} />
-          <Row icon="⭐" label="Rate the App"   onPress={() => {}} />
+          <Row icon="❓" label="Help Center"   onPress={soon('Help Center')} />
+          <Row icon="💬" label="Send Feedback" onPress={soon('Send Feedback')} />
+          <Row icon="⭐" label="Rate the App"  onPress={soon('Rate the App')} />
         </Section>
 
         <Section title="ACCOUNT">
-          <Row icon="🔒" label="Change Password" onPress={() => {}} />
+          <Row icon="🔒" label="Change Password" onPress={soon('Change Password')} />
           <Row icon="🚪" label="Sign Out"         onPress={handleSignOut} danger />
         </Section>
 
@@ -97,16 +132,16 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8 },
   title:  { color: Colors.text, fontSize: 22, fontWeight: '700' },
   profileCard: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    backgroundColor: Colors.card,
-    borderRadius:    14,
-    borderWidth:     1,
-    borderColor:     Colors.border,
+    flexDirection:    'row',
+    alignItems:       'center',
+    backgroundColor:  Colors.card,
+    borderRadius:     14,
+    borderWidth:      1,
+    borderColor:      Colors.border,
     marginHorizontal: 16,
-    marginVertical:  12,
-    padding:         16,
-    gap:             12,
+    marginVertical:   12,
+    padding:          16,
+    gap:              12,
   },
   profileAvatar: {
     width:           52,
@@ -120,15 +155,15 @@ const styles = StyleSheet.create({
   profileInfo:     { flex: 1 },
   profileName:     { color: Colors.text, fontSize: 15, fontWeight: '700' },
   profileEmail:    { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
-  editBtn:  { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: Colors.border },
-  editLabel:{ color: Colors.textSub, fontSize: 12 },
-  section:  { marginHorizontal: 16, marginBottom: 20 },
+  editBtn:   { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: Colors.border },
+  editLabel: { color: Colors.textSub, fontSize: 12 },
+  section:   { marginHorizontal: 16, marginBottom: 20 },
   sectionTitle: {
-    color:      Colors.textMuted,
-    fontSize:   9,
-    fontWeight: '700',
+    color:         Colors.textMuted,
+    fontSize:      9,
+    fontWeight:    '700',
     letterSpacing: 0.8,
-    marginBottom: 8,
+    marginBottom:  8,
   },
   sectionCard: {
     backgroundColor: Colors.card,
@@ -138,13 +173,13 @@ const styles = StyleSheet.create({
     overflow:        'hidden',
   },
   row: {
-    flexDirection:   'row',
-    alignItems:      'center',
+    flexDirection:     'row',
+    alignItems:        'center',
     paddingHorizontal: 16,
     paddingVertical:   14,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
-    gap:             12,
+    gap:               12,
   },
   rowIcon:    { fontSize: 16, width: 22 },
   rowText:    { flex: 1 },

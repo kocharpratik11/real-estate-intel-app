@@ -15,9 +15,10 @@ type Props = {
   total: number;
   current: number;
   onDotPress: (i: number) => void;
+  onDismiss?: () => void;
 };
 
-export function AIHeroCard({ insight, total, current, onDotPress }: Props) {
+export function AIHeroCard({ insight, total, current, onDotPress, onDismiss }: Props) {
   return (
     <View style={styles.container}>
       {/* gradient top strip */}
@@ -41,7 +42,7 @@ export function AIHeroCard({ insight, total, current, onDotPress }: Props) {
             <Text style={styles.btnPrimaryLabel}>{insight.primaryAction}</Text>
           </TouchableOpacity>
           {insight.secondaryAction && (
-            <TouchableOpacity style={styles.btnSecondary} onPress={insight.onSecondary} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.btnSecondary} onPress={onDismiss ?? insight.onSecondary} activeOpacity={0.8}>
               <Text style={styles.btnSecondaryLabel}>{insight.secondaryAction}</Text>
             </TouchableOpacity>
           )}

@@ -38,16 +38,17 @@ export async function generateAlerts(
     overdueByProp.set(pid, cur);
   }
 
-  for (const [, d] of overdueByProp) {
+  for (const [pid, d] of overdueByProp) {
     alerts.push({
-      id:       `overdue-${d.name}`,
-      severity: 'emergency',
-      title:    `${d.count} tenant${d.count !== 1 ? 's' : ''} owe rent this month`,
-      body:     `Potential recovery: $${d.totalDue.toLocaleString()}`,
-      action:   'View Portfolio →',
-      property: d.name,
-      time:     'This month',
-      route:    '/(app)/portfolio',
+      id:          `overdue-${d.name}`,
+      severity:    'emergency',
+      title:       `${d.count} tenant${d.count !== 1 ? 's' : ''} owe rent this month`,
+      body:        `Potential recovery: $${d.totalDue.toLocaleString()}  •  Tap to view & contact`,
+      action:      'View Ledger →',
+      property:    d.name,
+      time:        'This month',
+      route:       '/(app)/portfolio/[id]/rent',
+      routeParams: { id: pid, initialFilter: 'overdue' },
     });
   }
 
@@ -79,17 +80,18 @@ export async function generateAlerts(
       byProp.set(pid, cur);
     }
 
-    for (const [, d] of byProp) {
+    for (const [pid, d] of byProp) {
       const n = d.labels.length;
       alerts.push({
-        id:       `expiring-${d.propName}`,
-        severity: 'warning',
-        title:    `${n} lease${n !== 1 ? 's' : ''} expire within 30 days`,
-        body:     `${d.labels.slice(0, 3).join(', ')}. Send renewal notices now.`,
-        action:   'View Portfolio →',
-        property: d.propName,
-        time:     'Upcoming',
-        route:    '/(app)/portfolio',
+        id:          `expiring-${d.propName}`,
+        severity:    'warning',
+        title:       `${n} lease${n !== 1 ? 's' : ''} expire within 30 days`,
+        body:        `${d.labels.slice(0, 3).join(', ')}. Send renewal notices now.`,
+        action:      'View Property →',
+        property:    d.propName,
+        time:        'Upcoming',
+        route:       '/(app)/portfolio/[id]',
+        routeParams: { id: pid },
       });
     }
   }
