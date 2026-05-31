@@ -8,7 +8,6 @@ import { supabase } from '@/lib/supabase';
 import { getPortfolioSummary } from '@/lib/api/properties';
 import { generateAlerts } from '@/lib/api/alerts';
 import { AIHeroCard } from '@/components/home/AIHeroCard';
-import { QuickStats } from '@/components/home/QuickStats';
 import { RecentActivity, ActivityItem } from '@/components/home/RecentActivity';
 import { Colors } from '@/constants/colors';
 import type { PortfolioSummary } from '@/types';
@@ -190,14 +189,6 @@ export default function HomeScreen() {
           onDotPress={setInsightIdx}
           onDismiss={dismissInsight}
         />
-
-        {/* Quick Stats */}
-        {summary && (
-          <QuickStats
-            summary={summary}
-            onPress={() => router.push('/(app)/portfolio')}
-          />
-        )}
 
         {/* Recent Activity */}
         {activity.length > 0 && (
