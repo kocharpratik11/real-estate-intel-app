@@ -1,13 +1,14 @@
 import { useState, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  TextInput, StyleSheet, SafeAreaView, RefreshControl,
+  StyleSheet, SafeAreaView, RefreshControl,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { getPortfolioSummary } from '@/lib/api/properties';
 import { generateAlerts } from '@/lib/api/alerts';
 import { AIHeroCard } from '@/components/home/AIHeroCard';
+import { QuickStats } from '@/components/home/QuickStats';
 import { RecentActivity, ActivityItem } from '@/components/home/RecentActivity';
 import { Colors } from '@/constants/colors';
 import type { PortfolioSummary } from '@/types';
@@ -50,7 +51,6 @@ export default function HomeScreen() {
   const [insights,      setInsights]      = useState<Insight[]>([makeSummaryInsight(null)]);
   const [insightIdx,    setInsightIdx]    = useState(0);
   const [activity,      setActivity]      = useState<ActivityItem[]>([]);
-  const [aiQuery,       setAiQuery]       = useState('');
   const [refreshing,    setRefreshing]    = useState(false);
 
   // Track active workspace so we can reset UI when it changes
@@ -70,7 +70,6 @@ export default function HomeScreen() {
     if (wsId !== activeWsId.current) {
       activeWsId.current = wsId;
       setInsightIdx(0);
-      setAiQuery('');
       setSummary(null);
       setInsights([makeSummaryInsight(null)]);
       setActivity([]);
@@ -153,12 +152,6 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const submitAI = () => {
-    if (!aiQuery.trim()) return;
-    router.push({ pathname: '/(app)/alerts', params: { query: aiQuery } });
-    setAiQuery('');
-  };
-
   return (
     <SafeAreaView style={styles.root}>
       <ScrollView
@@ -190,6 +183,14 @@ export default function HomeScreen() {
           onDismiss={dismissInsight}
         />
 
+        {/* Quick Stats */}
+        {summary && (
+          <QuickStats
+            summary={summary}
+            onPress={() => router.push('/(app)/portfolio')}
+          />
+        )}
+
         {/* Recent Activity */}
         {activity.length > 0 && (
           <RecentActivity
@@ -198,28 +199,8 @@ export default function HomeScreen() {
           />
         )}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 40 }} />
       </ScrollView>
-
-      {/* Ask AI bar */}
-      <View style={styles.aiBar}>
-        <View style={styles.aiInputWrap}>
-          <Text style={styles.aiSpark}>✦</Text>
-          <TextInput
-            style={styles.aiInput}
-            value={aiQuery}
-            onChangeText={setAiQuery}
-            placeholder="Ask anything about your portfolio..."
-            placeholderTextColor={Colors.textMuted}
-            returnKeyType="send"
-            onSubmitEditing={submitAI}
-            selectionColor={Colors.blue}
-          />
-        </View>
-        <TouchableOpacity onPress={submitAI} style={styles.aiSendBtn}>
-          <Text style={styles.aiSendIcon}>↑</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
@@ -256,46 +237,4 @@ const styles = StyleSheet.create({
     borderRadius:    4,
     backgroundColor: Colors.red,
   },
-  aiBar: {
-    position:          'absolute',
-    bottom:            80,
-    left:              0,
-    right:             0,
-    flexDirection:     'row',
-    alignItems:        'center',
-    backgroundColor:   Colors.card,
-    borderTopWidth:    1,
-    borderTopColor:    Colors.border,
-    paddingHorizontal: 16,
-    paddingVertical:   14,
-    gap:               10,
-    shadowColor:       '#000',
-    shadowOffset:      { width: 0, height: -2 },
-    shadowOpacity:     0.04,
-    shadowRadius:      8,
-    elevation:         4,
-  },
-  aiInputWrap: {
-    flex:              1,
-    flexDirection:     'row',
-    alignItems:        'center',
-    backgroundColor:   Colors.aiDark,
-    borderRadius:      23,
-    borderWidth:       1.5,
-    borderColor:       Colors.aiBorder,
-    paddingHorizontal: 14,
-    paddingVertical:   10,
-    gap:               8,
-  },
-  aiSpark:    { color: Colors.blue, fontSize: 14, fontWeight: '700' },
-  aiInput:    { flex: 1, color: Colors.text, fontSize: 12 },
-  aiSendBtn: {
-    width:           40,
-    height:          40,
-    borderRadius:    20,
-    backgroundColor: Colors.blue,
-    alignItems:      'center',
-    justifyContent:  'center',
-  },
-  aiSendIcon: { color: Colors.white, fontSize: 18, fontWeight: '700' },
 });
