@@ -5,11 +5,12 @@ import type { Property } from '@/types';
 type HealthStatus = 'healthy' | 'warning' | 'critical';
 
 export type PropertyRowData = Property & {
-  cashFlow:        number;
-  collectionRate:  number;  // 0–1
-  badgeLabel:      string;
-  health:          HealthStatus;
-  vacancies?:      number;
+  cashFlow:       number;
+  collectionRate: number;  // 0–1
+  badgeLabel:     string;
+  health:         HealthStatus;
+  vacancies?:     number;
+  healthScore?:   number;  // 0–100, Phase 2
 };
 
 type Props = {
@@ -35,6 +36,18 @@ const HEALTH_BADGE_BD: Record<HealthStatus, string> = {
   critical: Colors.redBd,
 };
 
+function ScoreChip({ score }: { score: number }) {
+  const color = score >= 80 ? Colors.green : score >= 60 ? Colors.yellow : Colors.red;
+  const bg    = score >= 80 ? Colors.greenBg : score >= 60 ? Colors.yellowBg : Colors.redBg;
+  const bd    = score >= 80 ? Colors.greenBd : score >= 60 ? Colors.yellowBd : Colors.redBd;
+  return (
+    <View style={[styles.scoreChip, { backgroundColor: bg, borderColor: bd }]}>
+      <Text style={[styles.scoreNum, { color }]}>{score}</Text>
+      <Text style={[styles.scoreDenom, { color }]}>/100</Text>
+    </View>
+  );
+}
+
 export function PropertyRow({ property: p, onPress }: Props) {
   const accentColor = HEALTH_COLOR[p.health];
   const pct         = Math.round(p.collectionRate * 100);
@@ -46,12 +59,17 @@ export function PropertyRow({ property: p, onPress }: Props) {
         {/* name row */}
         <View style={styles.nameRow}>
           <Text style={styles.name}>{p.name}</Text>
-          <View style={[styles.badge, {
-            backgroundColor: HEALTH_BADGE_BG[p.health],
-            borderColor:     HEALTH_BADGE_BD[p.health],
-          }]}>
-            <Text style={[styles.badgeText, { color: accentColor }]}>{p.badgeLabel}</Text>
-          </View>
+          {p.healthScore != null
+            ? <ScoreChip score={p.healthScore} />
+            : (
+              <View style={[styles.badge, {
+                backgroundColor: HEALTH_BADGE_BG[p.health],
+                borderColor:     HEALTH_BADGE_BD[p.health],
+              }]}>
+                <Text style={[styles.badgeText, { color: accentColor }]}>{p.badgeLabel}</Text>
+              </View>
+            )
+          }
         </View>
 
         {/* address + units */}
@@ -80,20 +98,20 @@ export function PropertyRow({ property: p, onPress }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.card,
-    borderRadius:    14,
-    borderWidth:     1,
-    borderColor:     Colors.border,
-    borderLeftWidth: 4,
-    padding:         16,
+    backgroundColor:  Colors.card,
+    borderRadius:     14,
+    borderWidth:      1,
+    borderColor:      Colors.border,
+    borderLeftWidth:  4,
+    padding:          16,
     marginHorizontal: 16,
-    marginBottom:    10,
-    position:        'relative',
-    shadowColor:     '#000',
-    shadowOffset:    { width: 0, height: 1 },
-    shadowOpacity:   0.05,
-    shadowRadius:    4,
-    elevation:       2,
+    marginBottom:     10,
+    position:         'relative',
+    shadowColor:      '#000',
+    shadowOffset:     { width: 0, height: 1 },
+    shadowOpacity:    0.05,
+    shadowRadius:     4,
+    elevation:        2,
   },
   nameRow: {
     flexDirection:  'row',
@@ -102,32 +120,43 @@ const styles = StyleSheet.create({
     marginBottom:   4,
   },
   name: {
-    color:      Colors.text,
-    fontSize:   15,
-    fontWeight: '700',
+    color:       Colors.text,
+    fontSize:    15,
+    fontWeight:  '700',
     flex:        1,
     marginRight: 8,
   },
   badge: {
-    borderRadius: 4,
-    borderWidth:  1,
+    borderRadius:      4,
+    borderWidth:       1,
     paddingHorizontal: 6,
     paddingVertical:   2,
   },
   badgeText: {
-    fontSize:   9,
-    fontWeight: '700',
+    fontSize:      9,
+    fontWeight:    '700',
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
+  scoreChip: {
+    flexDirection:     'row',
+    alignItems:        'baseline',
+    borderRadius:      6,
+    borderWidth:       1,
+    paddingHorizontal: 7,
+    paddingVertical:   3,
+    gap:               1,
+  },
+  scoreNum:   { fontSize: 14, fontWeight: '700' },
+  scoreDenom: { fontSize: 9,  fontWeight: '600' },
   address: {
-    color:    Colors.textMuted,
-    fontSize: 11,
+    color:        Colors.textMuted,
+    fontSize:     11,
     marginBottom: 2,
   },
   units: {
-    color:    Colors.textMuted,
-    fontSize: 10,
+    color:        Colors.textMuted,
+    fontSize:     10,
     marginBottom: 10,
   },
   barTrack: {

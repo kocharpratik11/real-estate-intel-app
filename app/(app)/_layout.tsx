@@ -1,6 +1,9 @@
+import { useEffect, useRef } from 'react';
 import { Tabs, router } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { Colors } from '@/constants/colors';
+import { registerForPushNotifications } from '@/lib/notifications';
 
 function TabIcon({ label, emoji, focused }: { label: string; emoji: string; focused: boolean }) {
   return (
@@ -26,6 +29,34 @@ function FloatingChatButton() {
 }
 
 export default function AppLayout() {
+  const notifListener   = useRef<Notifications.EventSubscription | null>(null);
+  const responseListener = useRef<Notifications.EventSubscription | null>(null);
+
+  useEffect(() => {
+    // Register for push on first mount (after auth gate)
+    registerForPushNotifications().catch(() => {});
+
+    // Listen for incoming foreground notifications
+    notifListener.current = Notifications.addNotificationReceivedListener(() => {
+      // Badge / sound handled by setNotificationHandler above
+    });
+
+    // Handle notification taps — deep link into the app
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data as Record<string, string> | undefined;
+      if (data?.type === 'late_rent' && data?.route) {
+        router.push(data.route as any);
+      } else {
+        router.push('/(app)/alerts');
+      }
+    });
+
+    return () => {
+      notifListener.current?.remove();
+      responseListener.current?.remove();
+    };
+  }, []);
+
   return (
     <View style={styles.container}>
       <Tabs

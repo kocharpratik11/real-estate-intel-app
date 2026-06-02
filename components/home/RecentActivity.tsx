@@ -7,6 +7,7 @@ export type ActivityItem = {
   title: string;
   subtitle: string;
   time: string;
+  rawDate?: string;   // ISO date string (YYYY-MM-DD) for filtering
   timeColor?: string;
   onPress?: () => void;
 };

@@ -1,14 +1,16 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TextInput,
-  TouchableOpacity, StyleSheet, SafeAreaView, RefreshControl,
+  TouchableOpacity, StyleSheet, RefreshControl,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { listProperties } from '@/lib/api/properties';
+import { listProperties, getPortfolioSummary } from '@/lib/api/properties';
 import { PropertyRow, PropertyRowData } from '@/components/portfolio/PropertyRow';
 import { Colors } from '@/constants/colors';
-import type { Property } from '@/types';
+import { hapticLight } from '@/lib/haptics';
 
 const NOW  = new Date();
 const YEAR = NOW.getFullYear();
@@ -26,33 +28,66 @@ function toBadge(h: PropertyRowData['health'], cf: number): string {
   return 'All paid';
 }
 
+const fmtValue = (n: number) => {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000)     return `$${(n / 1_000).toFixed(0)}k`;
+  return `$${n}`;
+};
+
 export default function PortfolioScreen() {
+  const insets = useSafeAreaInsets();
   const [properties, setProperties] = useState<PropertyRowData[]>([]);
   const [search,     setSearch]     = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [totalValue, setTotalValue] = useState(0);
+  const [totalCF,    setTotalCF]    = useState(0);
+  const [overallPct, setOverallPct] = useState(0);
+  const [vacancies,  setVacancies]  = useState(0);
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
     const wsId = user.user_metadata?.current_workspace_id;
     if (!wsId) return;
 
-    const props = await listProperties(wsId);
+    const [props, summary] = await Promise.all([
+      listProperties(wsId),
+      getPortfolioSummary(wsId, YEAR, MON).catch(() => null),
+    ]);
 
-    // Fetch this month's rent payments for all properties in one query
+    if (summary) {
+      setTotalValue(summary.total_value);
+    }
+
     const propIds = props.map(p => p.id);
-    const { data: rents } = await supabase
-      .from('rent_payments')
-      .select('property_id, amount_due, amount_paid, status')
-      .in('property_id', propIds)
-      .eq('period_year', YEAR)
-      .eq('period_month', MON)
-      .eq('charge_type', 'rent');
 
+    // Fetch rent payments, all units, and active leases in parallel
+    const [rentsRes, allUnitsRes] = await Promise.all([
+      supabase
+        .from('rent_payments')
+        .select('property_id, amount_due, amount_paid, status')
+        .in('property_id', propIds)
+        .eq('period_year', YEAR)
+        .eq('period_month', MON)
+        .eq('charge_type', 'rent'),
+      supabase
+        .from('units')
+        .select('id, property_id')
+        .in('property_id', propIds),
+    ]);
+
+    const rents    = rentsRes.data ?? [];
+    const allUnits = (allUnitsRes.data ?? []) as { id: string; property_id: string }[];
+    const allUnitIds = allUnits.map(u => u.id);
+
+    // Fetch active leases for occupancy
+    const { data: activeLeases } = allUnitIds.length > 0
+      ? await supabase.from('leases').select('unit_id').in('unit_id', allUnitIds).eq('status', 'active')
+      : { data: [] as { unit_id: string }[] };
+
+    // Build per-property maps
     const rentByProp = new Map<string, { due: number; paid: number; count: number; paidCount: number }>();
-    for (const r of rents ?? []) {
+    for (const r of rents) {
       const cur = rentByProp.get(r.property_id) ?? { due: 0, paid: 0, count: 0, paidCount: 0 };
       cur.due       += r.amount_due ?? 0;
       cur.paid      += r.amount_paid ?? 0;
@@ -61,21 +96,38 @@ export default function PortfolioScreen() {
       rentByProp.set(r.property_id, cur);
     }
 
+    const unitToProp = new Map(allUnits.map(u => [u.id, u.property_id]));
+    const occupiedByProp = new Map<string, number>();
+    for (const l of activeLeases ?? []) {
+      const pid = unitToProp.get(l.unit_id);
+      if (pid) occupiedByProp.set(pid, (occupiedByProp.get(pid) ?? 0) + 1);
+    }
+    const totalUnitsByProp = new Map<string, number>();
+    for (const u of allUnits) {
+      totalUnitsByProp.set(u.property_id, (totalUnitsByProp.get(u.property_id) ?? 0) + 1);
+    }
+
     const rows: PropertyRowData[] = props.map(p => {
-      const r   = rentByProp.get(p.id) ?? { due: 0, paid: 0, count: 1, paidCount: 0 };
-      const pct = r.count > 0 ? r.paidCount / r.count : 0;
-      const cf  = r.paid;
-      const h   = toHealth(pct * 100, cf);
-      return { ...p, cashFlow: cf, collectionRate: pct, health: h, badgeLabel: toBadge(h, cf) };
+      const r           = rentByProp.get(p.id) ?? { due: 0, paid: 0, count: 1, paidCount: 0 };
+      const pct         = r.count > 0 ? r.paidCount / r.count : 0;
+      const cf          = r.paid;
+      const h           = toHealth(pct * 100, cf);
+      const totalUnits  = totalUnitsByProp.get(p.id) ?? p.unit_count;
+      const occupied    = occupiedByProp.get(p.id) ?? 0;
+      const occupancy   = totalUnits > 0 ? occupied / totalUnits : 1;
+      // 2-axis health score: collection 60pts + occupancy 40pts
+      const healthScore = Math.round(pct * 60 + occupancy * 40);
+      return { ...p, cashFlow: cf, collectionRate: pct, health: h, badgeLabel: toBadge(h, cf), healthScore };
     });
 
-    // Sort: critical first, then warning, then healthy
-    rows.sort((a, b) => {
-      const order = { critical: 0, warning: 1, healthy: 2 };
-      return order[a.health] - order[b.health];
-    });
+    rows.sort((a, b) => ({ critical: 0, warning: 1, healthy: 2 }[a.health] - { critical: 0, warning: 1, healthy: 2 }[b.health]));
 
     setProperties(rows);
+    setTotalCF(rows.reduce((s, p) => s + p.cashFlow, 0));
+    setVacancies(rows.reduce((s, p) => s + (p.vacancies ?? 0), 0));
+    setOverallPct(rows.length > 0
+      ? Math.round(rows.reduce((s, p) => s + p.collectionRate, 0) / rows.length * 100)
+      : 0);
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -87,44 +139,35 @@ export default function PortfolioScreen() {
     p.city.toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalCF  = properties.reduce((s, p) => s + p.cashFlow, 0);
-  const overallPct = properties.length > 0
-    ? Math.round(properties.reduce((s, p) => s + p.collectionRate, 0) / properties.length * 100)
-    : 0;
-  const vacancies = properties.reduce((s, p) => s + (p.vacancies ?? 0), 0);
+  const criticalCount = properties.filter(p => p.health === 'critical').length;
 
   return (
-    <SafeAreaView style={styles.root}>
+    <View style={[styles.root, { backgroundColor: Colors.indigo }]}>
+      {/* Gradient header */}
+      <LinearGradient colors={['#6366F1', '#7C3AED']} style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Text style={styles.title}>Portfolio</Text>
+        <Text style={styles.sub}>{properties.length} properties  •  {properties.reduce((s, p) => s + p.unit_count, 0)} units</Text>
+      </LinearGradient>
+
       <ScrollView
+        style={styles.scroll}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.blue} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.indigo} />}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Portfolio</Text>
-          <Text style={styles.sub}>{properties.length} properties  •  {properties.reduce((s,p)=>s+p.unit_count,0)} units total</Text>
-        </View>
-
-        {/* Search */}
-        <View style={styles.searchRow}>
-          <View style={styles.searchBar}>
-            <Text style={styles.searchIcon}>🔍</Text>
-            <TextInput
-              style={styles.searchInput}
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Search properties..."
-              placeholderTextColor={Colors.textMuted}
-              selectionColor={Colors.blue}
-            />
-          </View>
-        </View>
-
         {/* Summary strip */}
         <View style={styles.summaryStrip}>
+          {totalValue > 0 && (
+            <>
+              <View style={styles.summaryItem}>
+                <Text style={[styles.summaryValue, { color: Colors.indigo }]}>{fmtValue(totalValue)}</Text>
+                <Text style={styles.summaryLabel}>portfolio value</Text>
+              </View>
+              <View style={styles.summaryDivider} />
+            </>
+          )}
           <View style={styles.summaryItem}>
-            <Text style={[styles.summaryValue, { color: Colors.green }]}>
-              {totalCF >= 0 ? '+' : ''}{totalCF >= 1000 ? `$${(totalCF/1000).toFixed(1)}k` : `$${totalCF}`}
+            <Text style={[styles.summaryValue, { color: totalCF >= 0 ? Colors.green : Colors.red }]}>
+              {totalCF >= 0 ? '+' : ''}{fmtValue(Math.abs(totalCF))}
             </Text>
             <Text style={styles.summaryLabel}>/ mo cash flow</Text>
           </View>
@@ -138,7 +181,27 @@ export default function PortfolioScreen() {
             <Text style={[styles.summaryValue, { color: vacancies > 0 ? Colors.red : Colors.text }]}>
               {vacancies}
             </Text>
-            <Text style={styles.summaryLabel}>vacancy</Text>
+            <Text style={styles.summaryLabel}>vacant</Text>
+          </View>
+        </View>
+
+        {/* Search */}
+        <View style={styles.searchRow}>
+          <View style={styles.searchBar}>
+            <Text style={styles.searchIcon}>🔍</Text>
+            <TextInput
+              style={styles.searchInput}
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search properties..."
+              placeholderTextColor={Colors.textMuted}
+              selectionColor={Colors.indigo}
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
+                <Text style={styles.clearIcon}>✕</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -151,17 +214,24 @@ export default function PortfolioScreen() {
               onPress={() => router.push({ pathname: '/(app)/portfolio/[id]', params: { id: p.id } })}
             />
           ))}
+          {filtered.length === 0 && search.length > 0 && (
+            <Text style={styles.emptySearch}>No properties match "{search}"</Text>
+          )}
         </View>
 
-        {/* AI nudge */}
-        {properties.some(p => p.health === 'critical') && (
-          <TouchableOpacity style={styles.aiNudge} activeOpacity={0.8}>
-            <Text style={styles.aiNudgeSpark}>✦</Text>
+        {/* Critical alert nudge */}
+        {criticalCount > 0 && (
+          <TouchableOpacity
+            style={styles.nudge}
+            onPress={() => router.push('/(app)/alerts')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.nudgeSpark}>✦</Text>
             <View style={{ flex: 1 }}>
-              <Text style={styles.aiNudgeTitle}>
-                {properties.filter(p => p.health === 'critical').length} {properties.filter(p => p.health === 'critical').length === 1 ? 'property needs' : 'properties need'} attention
+              <Text style={styles.nudgeTitle}>
+                {criticalCount} {criticalCount === 1 ? 'property needs' : 'properties need'} attention
               </Text>
-              <Text style={styles.aiNudgeSub}>View AI recommendations →</Text>
+              <Text style={styles.nudgeSub}>View AI recommendations →</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -170,79 +240,93 @@ export default function PortfolioScreen() {
       </ScrollView>
 
       {/* FAB */}
-      <TouchableOpacity style={styles.fab} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={[styles.fab, { bottom: insets.bottom + 80 }]}
+        activeOpacity={0.8}
+        onPress={() => { hapticLight(); router.push('/(app)/portfolio/add'); }}
+      >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: Colors.bg },
-  header: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 4 },
-  title:  { color: Colors.text, fontSize: 22, fontWeight: '700' },
-  sub:    { color: Colors.textMuted, fontSize: 12, marginTop: 4 },
-  searchRow: {
-    flexDirection:   'row',
+  root:   { flex: 1 },
+  header: {
     paddingHorizontal: 16,
-    paddingVertical:   12,
-    gap:             8,
+    paddingBottom:     20,
   },
+  title:  { color: Colors.white, fontSize: 22, fontWeight: '700' },
+  sub:    { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 4 },
+  scroll: { flex: 1, backgroundColor: Colors.bg },
+
+  summaryStrip: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    backgroundColor:  Colors.card,
+    borderRadius:     14,
+    borderWidth:      1,
+    borderColor:      Colors.border,
+    marginHorizontal: 16,
+    marginTop:        16,
+    marginBottom:     8,
+    paddingVertical:  12,
+    shadowColor:      '#000',
+    shadowOffset:     { width: 0, height: 1 },
+    shadowOpacity:    0.05,
+    shadowRadius:     4,
+    elevation:        2,
+  },
+  summaryItem:    { flex: 1, alignItems: 'center' },
+  summaryValue:   { color: Colors.text, fontSize: 15, fontWeight: '700' },
+  summaryLabel:   { color: Colors.textMuted, fontSize: 9, marginTop: 2 },
+  summaryDivider: { width: 1, height: 32, backgroundColor: Colors.border },
+
+  searchRow: { paddingHorizontal: 16, paddingVertical: 8 },
   searchBar: {
-    flex:            1,
-    flexDirection:   'row',
-    alignItems:      'center',
-    backgroundColor: Colors.card,
-    borderRadius:    10,
-    borderWidth:     1,
-    borderColor:     Colors.border,
+    flexDirection:     'row',
+    alignItems:        'center',
+    backgroundColor:   Colors.card,
+    borderRadius:      10,
+    borderWidth:       1,
+    borderColor:       Colors.border,
     paddingHorizontal: 12,
-    gap:             8,
+    gap:               8,
   },
   searchIcon:  { fontSize: 14 },
   searchInput: { flex: 1, color: Colors.text, fontSize: 13, paddingVertical: 10 },
-  summaryStrip: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    backgroundColor: Colors.aiDark,
-    borderRadius:    12,
-    borderWidth:     1,
-    borderColor:     Colors.aiBorder,
+  clearIcon:   { color: Colors.textMuted, fontSize: 12 },
+
+  list:        { gap: 0, paddingTop: 4 },
+  emptySearch: { color: Colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 32, marginBottom: 16 },
+
+  nudge: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    backgroundColor:  Colors.aiCard,
+    borderRadius:     12,
+    borderWidth:      1,
+    borderColor:      Colors.aiBorder,
     marginHorizontal: 16,
-    paddingVertical:  12,
-    marginBottom:    16,
+    marginTop:        8,
+    padding:          14,
+    gap:              10,
   },
-  summaryItem: { flex: 1, alignItems: 'center' },
-  summaryValue: { color: Colors.text, fontSize: 15, fontWeight: '700' },
-  summaryLabel: { color: Colors.textMuted, fontSize: 9, marginTop: 2 },
-  summaryDivider: { width: 1, height: 32, backgroundColor: Colors.border },
-  list: { gap: 0 },
-  aiNudge: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    backgroundColor: Colors.aiDark,
-    borderRadius:    12,
-    borderWidth:     1,
-    borderColor:     Colors.aiBorder,
-    marginHorizontal: 16,
-    marginTop:       8,
-    padding:         14,
-    gap:             10,
-  },
-  aiNudgeSpark: { color: Colors.blue, fontSize: 16, fontWeight: '700' },
-  aiNudgeTitle: { color: Colors.text, fontSize: 13, fontWeight: '600' },
-  aiNudgeSub:   { color: Colors.blue, fontSize: 11, marginTop: 2 },
+  nudgeSpark: { color: Colors.indigo, fontSize: 16, fontWeight: '700' },
+  nudgeTitle: { color: Colors.text, fontSize: 13, fontWeight: '600' },
+  nudgeSub:   { color: Colors.indigo, fontSize: 11, marginTop: 2 },
+
   fab: {
     position:        'absolute',
-    bottom:          96,
     right:           20,
     width:           56,
     height:          56,
     borderRadius:    28,
-    backgroundColor: Colors.blue,
+    backgroundColor: Colors.indigo,
     alignItems:      'center',
     justifyContent:  'center',
-    shadowColor:     Colors.blue,
+    shadowColor:     Colors.indigo,
     shadowOffset:    { width: 0, height: 4 },
     shadowOpacity:   0.4,
     shadowRadius:    8,

@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "REI",
-    "slug": "real-estate-intel-app",
-    "version": "0.1.0",
+    "name": "Asset Brain",
+    "slug": "asset-brain",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "rei",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.rei.app",
+      "bundleIdentifier": "com.assetbrain.app",
       "newArchEnabled": true
     },
     "android": {
@@ -17,12 +17,20 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#F7F8FC"
       },
-      "package": "com.rei.app",
+      "package": "com.assetbrain.app",
+      "versionCode": 1,
       "newArchEnabled": true
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#6366F1"
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -34,6 +42,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d5940bc8-2ee5-4fe5-9623-ae41404b97bb"
+      }
+    },
+    "owner": "kocharpratik11"
   }
 }

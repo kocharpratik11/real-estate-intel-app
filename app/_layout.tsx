@@ -20,6 +20,7 @@ export default function RootLayout() {
         <Stack.Screen name="(app)"              options={{ animation: 'fade' }} />
         <Stack.Screen name="workspace-picker"   options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
         <Stack.Screen name="chat"               options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
+        <Stack.Screen name="onboarding"         options={{ animation: 'fade' }} />
       </Stack>
     </GestureHandlerRootView>
   );

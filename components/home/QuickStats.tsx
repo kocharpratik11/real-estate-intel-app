@@ -55,7 +55,7 @@ export function QuickStats({ summary, onPress }: Props) {
 const styles = StyleSheet.create({
   container: {
     flexDirection:   'row',
-    backgroundColor: Colors.card2,
+    backgroundColor: Colors.aiCard,
     borderRadius:    14,
     borderWidth:     1,
     borderColor:     Colors.aiBorder,

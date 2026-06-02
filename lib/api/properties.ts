@@ -41,11 +41,11 @@ export async function getActiveLeases(propertyId: string): Promise<Lease[]> {
 
   const { data, error } = await supabase
     .from('leases')
-    .select('id, unit_id, monthly_rent, start_date, end_date, status, units(label)')
+    .select('id, unit_id, monthly_rent, start_date, end_date, status, units(id, label)')
     .in('unit_id', unitIds)
     .eq('status', 'active');
   if (error) throw error;
-  return (data ?? []) as Lease[];
+  return (data ?? []) as unknown as Lease[];
 }
 
 async function countVacancies(unitIds: string[]): Promise<number> {
@@ -71,13 +71,13 @@ async function sumExpenses(propertyIds: string[], year: number, month: number): 
   return (data ?? []).reduce((s: number, e: any) => s + (e.amount ?? 0), 0);
 }
 
-// Lightweight metrics computed from rent_payments
+// Lightweight metrics computed from rent_payments + DB-computed property columns
 export async function getPropertyMetrics(
   propertyId: string,
   year: number,
   month: number,
 ): Promise<PropertyMetrics> {
-  const [rentRes, unitRes] = await Promise.all([
+  const [rentRes, unitRes, propRes] = await Promise.all([
     supabase
       .from('rent_payments')
       .select('amount_due, amount_paid, status')
@@ -89,25 +89,36 @@ export async function getPropertyMetrics(
       .from('units')
       .select('id')
       .eq('property_id', propertyId),
+    supabase
+      .from('properties')
+      .select('current_market_value, total_equity, roe_percentage, annual_noi, monthly_debt_service')
+      .eq('id', propertyId)
+      .single(),
   ]);
 
   const rows     = rentRes.data ?? [];
   const unitIds  = (unitRes.data ?? []).map((u: any) => u.id as string);
   const vacancies = await countVacancies(unitIds);
+  const prop     = propRes.data;
 
   const totalPaid = rows.reduce((s, r) => s + (r.amount_paid ?? 0), 0);
   const paid  = rows.filter(r => r.status === 'paid').length;
   const total = rows.length;
 
+  // Prefer DB-computed annual_noi / 12 for cash flow; fall back to collected rent
+  const monthlyCashFlow = prop?.annual_noi != null
+    ? Math.round(prop.annual_noi / 12)
+    : totalPaid;
+
   return {
     property_id:       propertyId,
-    monthly_cash_flow: totalPaid,
+    monthly_cash_flow: monthlyCashFlow,
     collection_rate:   total > 0 ? paid / total : 0,
     units_paid:        paid,
     units_total:       total,
-    current_value:     null,
-    equity:            null,
-    roe:               null,
+    current_value:     prop?.current_market_value ?? null,
+    equity:            prop?.total_equity          ?? null,
+    roe:               prop?.roe_percentage        ?? null,
     vacancies,
   };
 }
@@ -117,13 +128,14 @@ export async function getPortfolioSummary(
   year: number,
   month: number,
 ): Promise<PortfolioSummary> {
-  // 1. Workspace properties
+  // 1. Workspace properties (include market value for portfolio total)
   const { data: props } = await supabase
     .from('properties')
-    .select('id, unit_count')
+    .select('id, unit_count, current_market_value')
     .eq('workspace_id', workspaceId);
 
-  const propIds = (props ?? []).map((p: any) => p.id as string);
+  const propIds   = (props ?? []).map((p: any) => p.id as string);
+  const totalValue = (props ?? []).reduce((s: number, p: any) => s + (p.current_market_value ?? 0), 0);
 
   if (!propIds.length) {
     return {
@@ -165,7 +177,7 @@ export async function getPortfolioSummary(
 
   return {
     total_properties:     propIds.length,
-    total_value:          0,          // requires valuations table
+    total_value:          totalValue,
     monthly_cash_flow:    collected,
     collection_rate:      collectionRate,
     monthly_collected:    collected,

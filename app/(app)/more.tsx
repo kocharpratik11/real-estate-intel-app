@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Alert as RNAlert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert as RNAlert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { Colors } from '@/constants/colors';
 
@@ -33,15 +35,15 @@ function initials(name: string) {
 }
 
 export default function MoreScreen() {
-  const [displayName,    setDisplayName]    = useState('');
-  const [email,          setEmail]          = useState('');
-  const [workspaceName,  setWorkspaceName]  = useState('');
-  const [workspaceRole,  setWorkspaceRole]  = useState('');
+  const insets = useSafeAreaInsets();
+  const [displayName,   setDisplayName]   = useState('');
+  const [email,         setEmail]         = useState('');
+  const [workspaceName, setWorkspaceName] = useState('');
+  const [workspaceRole, setWorkspaceRole] = useState('');
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
     const first = user.user_metadata?.first_name ?? '';
     const last  = user.user_metadata?.last_name  ?? '';
     const name  = [first, last].filter(Boolean).join(' ') || user.email?.split('@')[0] || 'User';
@@ -73,90 +75,105 @@ export default function MoreScreen() {
   const roleLabel = workspaceRole.charAt(0).toUpperCase() + workspaceRole.slice(1);
 
   return (
-    <SafeAreaView style={styles.root}>
+    <View style={[styles.root, { backgroundColor: Colors.indigo }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>More</Text>
-        </View>
 
-        {/* Profile */}
-        <View style={styles.profileCard}>
-          <View style={styles.profileAvatar}>
-            <Text style={styles.profileInitials}>{initials(displayName || 'U')}</Text>
+        {/* Profile hero */}
+        <LinearGradient
+          colors={['#6366F1', '#7C3AED']}
+          style={[styles.hero, { paddingTop: insets.top + 20 }]}
+        >
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initials(displayName || 'U')}</Text>
           </View>
-          <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{displayName}</Text>
-            <Text style={styles.profileEmail}>{email}</Text>
-          </View>
-          <TouchableOpacity style={styles.editBtn}>
-            <Text style={styles.editLabel}>Edit</Text>
+          <Text style={styles.profileName}>{displayName || 'Loading…'}</Text>
+          <Text style={styles.profileEmail}>{email}</Text>
+          {workspaceName ? (
+            <View style={styles.wsBadge}>
+              <Text style={styles.wsBadgeText}>{workspaceName}  ·  {roleLabel}</Text>
+            </View>
+          ) : null}
+          <TouchableOpacity style={styles.editBtn} onPress={soon('Edit Profile')}>
+            <Text style={styles.editLabel}>Edit Profile</Text>
           </TouchableOpacity>
+        </LinearGradient>
+
+        {/* Sections */}
+        <View style={styles.content}>
+          <Section title="WORKSPACE">
+            <Row
+              icon="⊞"
+              label={workspaceName || 'Select workspace'}
+              sub={workspaceName ? roleLabel : 'Tap to choose a workspace'}
+              onPress={() => router.push('/workspace-picker')}
+            />
+            <Row icon="+" label="Add / Join Workspace" sub="Create or accept an invite" onPress={soon('Add / Join Workspace')} />
+          </Section>
+
+          <Section title="PREFERENCES">
+            <Row icon="🔔" label="Notifications" sub="Alerts, reminders, updates" onPress={() => router.push('/(app)/notification-settings')} />
+            <Row icon="💵" label="Currency"      sub="USD — US Dollar"            onPress={soon('Currency')} />
+            <Row icon="📅" label="Date Format"   sub="MM/DD/YYYY"                 onPress={soon('Date Format')} />
+          </Section>
+
+          <Section title="SUPPORT">
+            <Row icon="❓" label="Help Center"   onPress={soon('Help Center')} />
+            <Row icon="💬" label="Send Feedback" onPress={soon('Send Feedback')} />
+            <Row icon="⭐" label="Rate the App"  onPress={soon('Rate the App')} />
+          </Section>
+
+          <Section title="ACCOUNT">
+            <Row icon="🔒" label="Change Password" onPress={soon('Change Password')} />
+            <Row icon="🚪" label="Sign Out"         onPress={handleSignOut} danger />
+          </Section>
+
+          <Text style={styles.version}>Asset Brain  v0.1.0</Text>
+          <View style={{ height: 40 }} />
         </View>
-
-        <Section title="WORKSPACE">
-          <Row
-            icon="⊞"
-            label={workspaceName || 'Select workspace'}
-            sub={workspaceName ? `${roleLabel}` : 'Tap to choose a workspace'}
-            onPress={() => router.push('/workspace-picker')}
-          />
-          <Row icon="+" label="Add / Join Workspace" sub="Create or accept an invite" onPress={soon('Add / Join Workspace')} />
-        </Section>
-
-        <Section title="PREFERENCES">
-          <Row icon="🔔" label="Notifications" sub="Alerts, reminders, updates" onPress={soon('Notifications')} />
-          <Row icon="💵" label="Currency"      sub="USD — US Dollar"            onPress={soon('Currency')} />
-          <Row icon="📅" label="Date Format"   sub="MM/DD/YYYY"                 onPress={soon('Date Format')} />
-        </Section>
-
-        <Section title="SUPPORT">
-          <Row icon="❓" label="Help Center"   onPress={soon('Help Center')} />
-          <Row icon="💬" label="Send Feedback" onPress={soon('Send Feedback')} />
-          <Row icon="⭐" label="Rate the App"  onPress={soon('Rate the App')} />
-        </Section>
-
-        <Section title="ACCOUNT">
-          <Row icon="🔒" label="Change Password" onPress={soon('Change Password')} />
-          <Row icon="🚪" label="Sign Out"         onPress={handleSignOut} danger />
-        </Section>
-
-        <Text style={styles.version}>Real Estate Intel  v0.1.0</Text>
-        <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: Colors.bg },
-  header: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8 },
-  title:  { color: Colors.text, fontSize: 22, fontWeight: '700' },
-  profileCard: {
-    flexDirection:    'row',
-    alignItems:       'center',
-    backgroundColor:  Colors.card,
-    borderRadius:     14,
-    borderWidth:      1,
-    borderColor:      Colors.border,
-    marginHorizontal: 16,
-    marginVertical:   12,
-    padding:          16,
-    gap:              12,
+  root: { flex: 1, backgroundColor: Colors.bg },
+  hero: {
+    alignItems:        'center',
+    paddingBottom:     28,
+    paddingHorizontal: 24,
+    gap:               8,
   },
-  profileAvatar: {
-    width:           52,
-    height:          52,
-    borderRadius:    26,
-    backgroundColor: Colors.blue,
+  avatar: {
+    width:           72,
+    height:          72,
+    borderRadius:    36,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth:     2,
+    borderColor:     'rgba(255,255,255,0.4)',
     alignItems:      'center',
     justifyContent:  'center',
+    marginBottom:    4,
   },
-  profileInitials: { color: Colors.white, fontSize: 16, fontWeight: '700' },
-  profileInfo:     { flex: 1 },
-  profileName:     { color: Colors.text, fontSize: 15, fontWeight: '700' },
-  profileEmail:    { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
-  editBtn:   { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: Colors.border },
-  editLabel: { color: Colors.textSub, fontSize: 12 },
+  avatarText:   { color: Colors.white, fontSize: 22, fontWeight: '700' },
+  profileName:  { color: Colors.white, fontSize: 18, fontWeight: '700' },
+  profileEmail: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: -2 },
+  wsBadge: {
+    backgroundColor:   'rgba(255,255,255,0.15)',
+    borderRadius:      12,
+    paddingHorizontal: 12,
+    paddingVertical:   5,
+    marginTop:         4,
+  },
+  wsBadgeText: { color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: '600' },
+  editBtn: {
+    backgroundColor:   'rgba(255,255,255,0.15)',
+    borderRadius:      8,
+    paddingHorizontal: 16,
+    paddingVertical:   8,
+    marginTop:         8,
+  },
+  editLabel: { color: Colors.white, fontSize: 12, fontWeight: '600' },
+  content:   { backgroundColor: Colors.bg, paddingTop: 20 },
   section:   { marginHorizontal: 16, marginBottom: 20 },
   sectionTitle: {
     color:         Colors.textMuted,

@@ -8,7 +8,7 @@ export async function getRentPayments(
   let q = supabase
     .from('rent_payments')
     .select(`
-      id, lease_id, property_id,
+      id, lease_id, property_id, unit_id,
       period_year, period_month,
       due_date, paid_date,
       amount_due, amount_paid,
@@ -22,7 +22,7 @@ export async function getRentPayments(
 
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []) as RentPayment[];
+  return (data ?? []) as unknown as RentPayment[];
 }
 
 export async function recordPayment(
@@ -63,7 +63,7 @@ export function buildLedger(payments: RentPayment[]): LedgerEvent[] {
   for (const p of payments) {
     const isCredit =
       p.charge_type === 'other' &&
-      p.charge_description?.toLowerCase().includes('prepayment credit');
+      (p.charge_description?.toLowerCase().includes('prepayment credit') ?? false);
 
     if (!isCredit && p.status !== 'waived') {
       events.push({

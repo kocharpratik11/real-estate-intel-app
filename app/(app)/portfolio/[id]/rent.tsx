@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, SafeAreaView, ActivityIndicator, RefreshControl, Alert,
+  StyleSheet, ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getRentPayments, buildLedger } from '@/lib/api/rent';
 import { LedgerRow } from '@/components/rent/LedgerRow';
 import { RecordPaymentSheet } from '@/components/rent/RecordPaymentSheet';
@@ -21,6 +23,7 @@ const fmtAmt = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDig
 
 export default function RentLedgerScreen() {
   const { id, initialFilter } = useLocalSearchParams<{ id: string; initialFilter?: string }>();
+  const insets = useSafeAreaInsets();
   const [payments,   setPayments]   = useState<RentPayment[]>([]);
   const [events,     setEvents]     = useState<LedgerEvent[]>([]);
   const [filter,     setFilter]     = useState<Filter>((initialFilter as Filter) ?? 'all');
@@ -52,7 +55,6 @@ export default function RentLedgerScreen() {
   const totalCount = monthPayments.length;
   const pct        = totalDue > 0 ? totalPaid / totalDue : 0;
 
-  // Filter events
   const STATUS_MAP: Record<Filter, PaymentStatus | null> = {
     all:     null,
     paid:    'paid',
@@ -81,63 +83,73 @@ export default function RentLedgerScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.root}>
-      {/* Header */}
-      <View style={styles.header}>
+    <View style={[styles.root, { backgroundColor: Colors.indigo }]}>
+      {/* Gradient header */}
+      <LinearGradient
+        colors={['#6366F1', '#7C3AED']}
+        style={[styles.hero, { paddingTop: insets.top + 8 }]}
+      >
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.back}>‹ Property</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Rent Ledger</Text>
-      </View>
+      </LinearGradient>
 
-      {/* Month selector */}
-      <View style={styles.monthNav}>
-        <TouchableOpacity onPress={prevMonth} hitSlop={12}>
-          <Text style={styles.navArrow}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.monthLabel}>{MONTHS[month - 1]} {year}</Text>
-        <TouchableOpacity onPress={nextMonth} hitSlop={12}>
-          <Text style={styles.navArrow}>›</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Summary bar */}
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryTop}>
-          <Text style={styles.summaryAmount}>{fmtAmt(totalPaid)}</Text>
-          <Text style={styles.summaryOf}>/ {fmtAmt(totalDue)}</Text>
-        </View>
-        <Text style={styles.summarySub}>collected  •  {paidCount} of {totalCount} units paid</Text>
-        <View style={styles.barTrack}>
-          <View style={[styles.barFill, {
-            width: `${Math.round(pct * 100)}%`,
-            backgroundColor: pct >= 0.8 ? Colors.green : pct >= 0.6 ? Colors.yellow : Colors.red,
-          }]} />
-        </View>
-      </View>
-
-      {/* Filter chips */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingVertical: 8 }}>
-        {FILTERS.map(f => (
-          <TouchableOpacity
-            key={f.key}
-            onPress={() => setFilter(f.key)}
-            style={[styles.chip, filter === f.key && styles.chipActive]}
-          >
-            <Text style={[styles.chipLabel, filter === f.key && styles.chipLabelActive]}>
-              {f.label}
-            </Text>
+      {/* Scrollable content */}
+      <View style={styles.body}>
+        {/* Month selector */}
+        <View style={styles.monthNav}>
+          <TouchableOpacity onPress={prevMonth} hitSlop={12}>
+            <Text style={styles.navArrow}>‹</Text>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+          <Text style={styles.monthLabel}>{MONTHS[month - 1]} {year}</Text>
+          <TouchableOpacity onPress={nextMonth} hitSlop={12}>
+            <Text style={styles.navArrow}>›</Text>
+          </TouchableOpacity>
+        </View>
 
-      {loading
-        ? <ActivityIndicator style={{ marginTop: 40 }} color={Colors.blue} />
-        : (
+        {/* Summary bar */}
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryTop}>
+            <Text style={styles.summaryAmount}>{fmtAmt(totalPaid)}</Text>
+            <Text style={styles.summaryOf}>/ {fmtAmt(totalDue)}</Text>
+          </View>
+          <Text style={styles.summarySub}>collected  •  {paidCount} of {totalCount} units paid</Text>
+          <View style={styles.barTrack}>
+            <View style={[styles.barFill, {
+              width: `${Math.round(pct * 100)}%` as any,
+              backgroundColor: pct >= 0.8 ? Colors.green : pct >= 0.6 ? Colors.yellow : Colors.red,
+            }]} />
+          </View>
+        </View>
+
+        {/* Filter chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterRow}
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingVertical: 8 }}
+        >
+          {FILTERS.map(f => (
+            <TouchableOpacity
+              key={f.key}
+              onPress={() => setFilter(f.key)}
+              style={[styles.chip, filter === f.key && styles.chipActive]}
+            >
+              <Text style={[styles.chipLabel, filter === f.key && styles.chipLabelActive]}>
+                {f.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {loading ? (
+          <ActivityIndicator style={{ marginTop: 40 }} color={Colors.blue} />
+        ) : (
           <ScrollView
             showsVerticalScrollIndicator={false}
             style={styles.list}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.blue} />}
           >
             {filteredEvents.length === 0
@@ -176,8 +188,8 @@ export default function RentLedgerScreen() {
                 ))
             }
           </ScrollView>
-        )
-      }
+        )}
+      </View>
 
       {/* Record Payment Sheet */}
       {selected && (
@@ -188,48 +200,49 @@ export default function RentLedgerScreen() {
           onSuccess={() => { setShowSheet(false); setSelected(null); load(); }}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root:  { flex: 1, backgroundColor: Colors.bg },
-  header: {
+  root: { flex: 1, backgroundColor: Colors.bg },
+  hero: {
     paddingHorizontal: 16,
-    paddingTop:      16,
-    paddingBottom:   4,
+    paddingBottom:     16,
+    gap:               4,
   },
-  back:  { color: Colors.blue, fontSize: 13, marginBottom: 4 },
-  title: { color: Colors.text, fontSize: 22, fontWeight: '700' },
+  back:  { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginBottom: 2 },
+  title: { color: Colors.white, fontSize: 22, fontWeight: '700' },
+  body:  { flex: 1, backgroundColor: Colors.bg },
   monthNav: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.card,
-    borderRadius:   10,
-    borderWidth:    1,
-    borderColor:    Colors.border,
-    marginHorizontal: 16,
-    marginTop:      12,
+    flexDirection:     'row',
+    alignItems:        'center',
+    justifyContent:    'space-between',
+    backgroundColor:   Colors.card,
+    borderRadius:      10,
+    borderWidth:       1,
+    borderColor:       Colors.border,
+    marginHorizontal:  16,
+    marginTop:         12,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical:   10,
   },
   navArrow:   { color: Colors.textMuted, fontSize: 18 },
   monthLabel: { color: Colors.text, fontSize: 14, fontWeight: '600' },
   summaryCard: {
-    backgroundColor: Colors.card2,
-    borderRadius:    12,
-    borderWidth:     1,
-    borderColor:     Colors.aiBorder,
+    backgroundColor:  Colors.aiCard,
+    borderRadius:     12,
+    borderWidth:      1,
+    borderColor:      Colors.aiBorder,
     marginHorizontal: 16,
-    marginTop:       12,
-    padding:         16,
-    gap:             4,
+    marginTop:        12,
+    padding:          16,
+    gap:              4,
   },
-  summaryTop: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  summaryTop:    { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
   summaryAmount: { color: Colors.text, fontSize: 22, fontWeight: '700' },
-  summaryOf:  { color: Colors.textMuted, fontSize: 13 },
-  summarySub: { color: Colors.textMuted, fontSize: 11 },
+  summaryOf:     { color: Colors.textMuted, fontSize: 13 },
+  summarySub:    { color: Colors.textMuted, fontSize: 11 },
   barTrack: {
     height:          5,
     backgroundColor: Colors.border,
@@ -237,19 +250,19 @@ const styles = StyleSheet.create({
     marginTop:       8,
     overflow:        'hidden',
   },
-  barFill: { height: 5, borderRadius: 3 },
-  filterRow: { maxHeight: 56 },
+  barFill:         { height: 5, borderRadius: 3 },
+  filterRow:       { maxHeight: 56 },
   chip: {
-    backgroundColor: Colors.card,
-    borderRadius:    14,
-    borderWidth:     1,
-    borderColor:     Colors.border,
+    backgroundColor:   Colors.card,
+    borderRadius:      14,
+    borderWidth:       1,
+    borderColor:       Colors.border,
     paddingHorizontal: 14,
     paddingVertical:   7,
   },
   chipActive:      { backgroundColor: Colors.blue, borderColor: Colors.blue },
   chipLabel:       { color: Colors.textMuted, fontSize: 12, fontWeight: '500' },
   chipLabelActive: { color: Colors.white, fontWeight: '700' },
-  list:  { flex: 1 },
-  empty: { color: Colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 40 },
+  list:            { flex: 1 },
+  empty:           { color: Colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 40 },
 });

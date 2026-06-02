@@ -7,6 +7,7 @@ import {
 import { Colors } from '@/constants/colors';
 import { Button } from '@/components/ui/Button';
 import { recordPayment } from '@/lib/api/rent';
+import { hapticSuccess, hapticError } from '@/lib/haptics';
 import type { RentPayment } from '@/types';
 
 type Props = {
@@ -36,8 +37,10 @@ export function RecordPaymentSheet({ payment, visible, onClose, onSuccess }: Pro
     setError(null);
     try {
       await recordPayment(payment.id, paid, date, method, notes || undefined);
+      hapticSuccess();
       onSuccess();
     } catch (e: any) {
+      hapticError();
       setError(e.message ?? 'Failed to record payment');
     } finally {
       setLoading(false);
