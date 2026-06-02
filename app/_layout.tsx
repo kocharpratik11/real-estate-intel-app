@@ -71,6 +71,17 @@ export default function RootLayout() {
     if (!__DEV__) checkForUpdate();
   }, []);
 
+  // Guard against stale / invalid refresh tokens.
+  // Supabase emits SIGNED_OUT after a failed token refresh — redirect to login.
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        router.replace('/(auth)/login');
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   // Handle deep links — both cold-start (app opened via link) and warm (app already open)
   useEffect(() => {
     // App was opened from a deep link while closed
