@@ -40,6 +40,7 @@ export default function SignupScreen() {
   const [pwTouched,       setPwTouched]       = useState(false);
   const [loading,         setLoading]         = useState(false);
   const [error,           setError]           = useState<string | null>(null);
+  const [accountExists,   setAccountExists]   = useState(false);
   const [sent,            setSent]            = useState(false);
   const [resending,       setResending]       = useState(false);
   const [resent,          setResent]          = useState(false);
@@ -60,6 +61,7 @@ export default function SignupScreen() {
 
     setLoading(true);
     setError(null);
+    setAccountExists(false);
 
     const { data, error: err } = await supabase.auth.signUp({
       email,
@@ -68,10 +70,25 @@ export default function SignupScreen() {
     });
     setLoading(false);
 
-    if (err) { setError(err.message); return; }
+    if (err) {
+      // Supabase returns this when the email is already registered
+      const msg = err.message.toLowerCase();
+      if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('user already')) {
+        setAccountExists(true);
+      } else {
+        setError(err.message);
+      }
+      return;
+    }
+
+    // Supabase silently succeeds for existing confirmed accounts (returns empty identities)
+    // instead of an error — catch this case too
+    if (data.user && data.user.identities?.length === 0) {
+      setAccountExists(true);
+      return;
+    }
 
     if (!data.session) {
-      // Email confirmation required
       setSent(true);
     } else {
       router.replace('/onboarding');
@@ -200,7 +217,7 @@ export default function SignupScreen() {
             emailTouched && emailValid  && styles.inputValid,
           ]}
           value={email}
-          onChangeText={t => { setEmail(t); setError(null); }}
+          onChangeText={t => { setEmail(t); setError(null); setAccountExists(false); }}
           onBlur={() => setEmailTouched(true)}
           keyboardType="email-address"
           autoCapitalize="none"
@@ -274,6 +291,17 @@ export default function SignupScreen() {
           <Text style={confirmMatch ? styles.matchOk : styles.matchErr}>
             {confirmMatch ? '✓ Passwords match' : '✗ Passwords do not match'}
           </Text>
+        )}
+
+        {accountExists && (
+          <View style={styles.existsBanner}>
+            <Text style={styles.existsText}>
+              An account with this email already exists.
+            </Text>
+            <TouchableOpacity onPress={() => router.replace('/(auth)/login')} activeOpacity={0.7}>
+              <Text style={styles.existsLink}>Sign in instead →</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {error && <Text style={styles.error}>{error}</Text>}
@@ -381,6 +409,17 @@ const styles = StyleSheet.create({
   matchOk:  { color: Colors.green, fontSize: 11, marginTop: 4 },
   matchErr: { color: Colors.red,   fontSize: 11, marginTop: 4 },
 
+  existsBanner: {
+    backgroundColor: Colors.yellowBg,
+    borderRadius:    10,
+    borderWidth:     1,
+    borderColor:     Colors.yellowBd,
+    padding:         14,
+    marginTop:       12,
+    gap:             6,
+  },
+  existsText: { color: '#92400E', fontSize: 13 },
+  existsLink: { color: '#B45309', fontSize: 13, fontWeight: '700' },
   error: { color: Colors.red, fontSize: 12, marginTop: 12 },
   btn:   { marginTop: 24 },
 
