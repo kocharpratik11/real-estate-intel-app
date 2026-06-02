@@ -30,6 +30,15 @@ export default function OnboardingScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // ── TEMP DIAGNOSTICS ─────────────────────────────────────────────────
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[onboarding] user.id        :', user.id);
+      console.log('[onboarding] session exists :', !!session);
+      console.log('[onboarding] access_token   :', session?.access_token?.slice(0, 40) ?? 'NONE');
+      console.log('[onboarding] role            :', session?.user?.role);
+      console.log('[onboarding] aud             :', session?.user?.aud);
+      // ─────────────────────────────────────────────────────────────────────
+
       // Create workspace
       const { data: ws, error: wsErr } = await supabase
         .from('workspaces')
