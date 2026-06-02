@@ -27,13 +27,24 @@ export default function OnboardingScreen() {
     setError(null);
 
     try {
-      // Use RPC (SECURITY DEFINER) to bypass RLS on mobile —
-      // the function validates auth.uid() server-side and handles
-      // both the workspace insert and the owner member insert atomically.
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Create workspace
       const { data: ws, error: wsErr } = await supabase
-        .rpc('create_workspace_for_user', { workspace_name: workspaceName.trim() });
+        .from('workspaces')
+        .insert({ name: workspaceName.trim(), created_by: user.id })
+        .select('id, name')
+        .single();
 
       if (wsErr || !ws) throw new Error(wsErr?.message ?? 'Failed to create workspace');
+
+      // Add creator as owner member
+      await supabase.from('workspace_members').insert({
+        workspace_id: ws.id,
+        user_id:      user.id,
+        role:         'owner',
+      });
 
       // Update user metadata with active workspace
       await supabase.auth.updateUser({
