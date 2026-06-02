@@ -84,8 +84,8 @@ export default function OnboardingScreen() {
             <Text style={styles.logoSpark}>✦</Text>
           </View>
           <Text style={styles.appName}>ASSET BRAIN</Text>
-          <Text style={styles.heading}>Set up your workspace</Text>
-          <Text style={styles.sub}>A workspace holds your properties, units, and leases.</Text>
+          <Text style={styles.heading}>Build your portfolio brain</Text>
+          <Text style={styles.sub}>Your command centre for every property, unit, and tenant.</Text>
         </LinearGradient>
 
         <ScrollView
@@ -111,10 +111,9 @@ export default function OnboardingScreen() {
           <Text style={styles.hint}>You can rename this later in Settings.</Text>
 
           <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>What is a workspace?</Text>
+            <Text style={styles.infoTitle}>✦  What happens next</Text>
             <Text style={styles.infoBody}>
-              A workspace is your organization for managing properties, units, leases, and tenants.
-              You can create multiple workspaces and invite team members.
+              Add your properties and Asset Brain will calculate your real cash flow, cap rate, and DSCR — then brief you on your portfolio every morning with AI.
             </Text>
           </View>
 

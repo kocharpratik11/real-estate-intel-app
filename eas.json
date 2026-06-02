@@ -18,14 +18,6 @@
       "ios": {}
     }
   },
-  "update": {
-    "production": {
-      "channel": "production"
-    },
-    "preview": {
-      "channel": "preview"
-    }
-  },
   "submit": {
     "production": {}
   }

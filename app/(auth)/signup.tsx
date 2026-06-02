@@ -155,7 +155,7 @@ export default function SignupScreen() {
           <Text style={styles.logoSpark}>✦</Text>
         </View>
         <Text style={styles.appName}>Asset Brain</Text>
-        <Text style={styles.tagline}>Your portfolio, intelligently managed</Text>
+        <Text style={styles.tagline}>Your portfolio's about to get a lot smarter.</Text>
       </LinearGradient>
 
       <ScrollView
@@ -165,6 +165,31 @@ export default function SignupScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.sectionTitle}>Create your account</Text>
+
+        {/* Value props */}
+        <View style={vpStyles.container}>
+          <View style={vpStyles.row}>
+            <Text style={vpStyles.icon}>📊</Text>
+            <Text style={vpStyles.text}>
+              <Text style={vpStyles.bold}>True cash flow & metrics</Text>
+              {' '}— cap rate, NOI, DSCR calculated correctly, not estimated.
+            </Text>
+          </View>
+          <View style={vpStyles.row}>
+            <Text style={vpStyles.icon}>🤖</Text>
+            <Text style={vpStyles.text}>
+              <Text style={vpStyles.bold}>Daily AI briefings</Text>
+              {' '}— a plain-language summary of your portfolio every morning.
+            </Text>
+          </View>
+          <View style={vpStyles.row}>
+            <Text style={vpStyles.icon}>🎯</Text>
+            <Text style={vpStyles.text}>
+              <Text style={vpStyles.bold}>Portfolio optimizer</Text>
+              {' '}— know exactly what to refinance, fix, or exit to maximise returns.
+            </Text>
+          </View>
+        </View>
 
         {/* Email */}
         <Text style={styles.fieldLabel}>EMAIL</Text>
@@ -269,6 +294,22 @@ export default function SignupScreen() {
     </KeyboardAvoidingView>
   );
 }
+
+const vpStyles = StyleSheet.create({
+  container: {
+    backgroundColor: Colors.aiCard,
+    borderRadius:    12,
+    borderWidth:     1,
+    borderColor:     Colors.aiBorder,
+    padding:         14,
+    marginBottom:    24,
+    gap:             10,
+  },
+  row:  { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  icon: { fontSize: 15, marginTop: 1 },
+  text: { flex: 1, fontSize: 12, color: Colors.textSub, lineHeight: 18 },
+  bold: { fontWeight: '600', color: Colors.text },
+});
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },

@@ -41,7 +41,7 @@ export default function LoginScreen() {
           <Text style={styles.logoSpark}>✦</Text>
         </View>
         <Text style={styles.appName}>Asset Brain</Text>
-        <Text style={styles.tagline}>Your portfolio, intelligently managed</Text>
+        <Text style={styles.tagline}>Know your numbers. Own your portfolio.</Text>
       </LinearGradient>
 
       <ScrollView
