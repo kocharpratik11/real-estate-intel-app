@@ -23,9 +23,8 @@ export default function ForgotPasswordScreen() {
   const emailValid = emailRegex.test(email);
 
   const sendReset = async (addr: string) => {
-    const appUrl = process.env.EXPO_PUBLIC_APP_URL || 'https://assetbrain.app';
     const { error: err } = await supabase.auth.resetPasswordForEmail(addr, {
-      redirectTo: `${appUrl}/reset-password`,
+      redirectTo: 'rei://reset-password',
     });
     return err;
   };

@@ -61,11 +61,10 @@ export default function SignupScreen() {
     setLoading(true);
     setError(null);
 
-    const appUrl = process.env.EXPO_PUBLIC_APP_URL || 'https://assetbrain.app';
     const { data, error: err } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${appUrl}/onboarding` },
+      options: { emailRedirectTo: 'rei://confirm' },
     });
     setLoading(false);
 
