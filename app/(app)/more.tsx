@@ -1,10 +1,11 @@
 import { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert as RNAlert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Switch, StyleSheet, Alert as RNAlert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { Colors } from '@/constants/colors';
+import { useAuth } from '@/contexts/AuthContext';
 
 type RowProps = { icon: string; label: string; sub?: string; onPress: () => void; danger?: boolean };
 
@@ -36,6 +37,7 @@ function initials(name: string) {
 
 export default function MoreScreen() {
   const insets = useSafeAreaInsets();
+  const { biometricAvailable, biometricEnabled, setBiometricEnabled } = useAuth();
   const [displayName,   setDisplayName]   = useState('');
   const [email,         setEmail]         = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
@@ -58,18 +60,21 @@ export default function MoreScreen() {
   const soon = (label: string) => () =>
     RNAlert.alert(label, 'This feature is not available yet.');
 
+  const { signOut } = useAuth();
+
   const handleSignOut = () => {
     RNAlert.alert('Sign Out', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          await supabase.auth.signOut();
-          router.replace('/(auth)/login');
-        },
+        text:    'Sign Out',
+        style:   'destructive',
+        onPress: signOut,
       },
     ]);
+  };
+
+  const handleBiometricToggle = async (value: boolean) => {
+    await setBiometricEnabled(value);
   };
 
   const roleLabel = workspaceRole.charAt(0).toUpperCase() + workspaceRole.slice(1);
@@ -124,7 +129,22 @@ export default function MoreScreen() {
 
           <Section title="ACCOUNT">
             <Row icon="🔒" label="Change Password" onPress={() => router.push('/reset-password')} />
-            <Row icon="🚪" label="Sign Out"         onPress={handleSignOut} danger />
+            {biometricAvailable && (
+              <TouchableOpacity style={styles.row} activeOpacity={1}>
+                <Text style={styles.rowIcon}>󾓦</Text>
+                <View style={styles.rowText}>
+                  <Text style={styles.rowLabel}>Face ID</Text>
+                  <Text style={styles.rowSub}>Require Face ID on app open</Text>
+                </View>
+                <Switch
+                  value={biometricEnabled}
+                  onValueChange={handleBiometricToggle}
+                  trackColor={{ false: Colors.border, true: Colors.indigo }}
+                  thumbColor={Colors.white}
+                />
+              </TouchableOpacity>
+            )}
+            <Row icon="🚪" label="Sign Out" onPress={handleSignOut} danger />
           </Section>
 
           <Text style={styles.version}>Asset Brain  v0.1.0</Text>
