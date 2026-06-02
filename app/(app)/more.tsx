@@ -123,7 +123,7 @@ export default function MoreScreen() {
           </Section>
 
           <Section title="ACCOUNT">
-            <Row icon="🔒" label="Change Password" onPress={soon('Change Password')} />
+            <Row icon="🔒" label="Change Password" onPress={() => router.push('/reset-password')} />
             <Row icon="🚪" label="Sign Out"         onPress={handleSignOut} danger />
           </Section>
 
