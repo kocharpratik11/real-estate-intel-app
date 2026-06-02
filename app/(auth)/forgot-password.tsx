@@ -5,28 +5,35 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/colors';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const API_URL = 'https://assetbrain.app/api/auth/forgot-password';
 
 export default function ForgotPasswordScreen() {
-  const [email,        setEmail]        = useState('');
-  const [emailTouched, setEmailTouched] = useState(false);
-  const [loading,      setLoading]      = useState(false);
-  const [sent,         setSent]         = useState(false);
-  const [error,        setError]        = useState<string | null>(null);
-  const [resending,    setResending]    = useState(false);
-  const [resent,       setResent]       = useState(false);
+  const [email,         setEmail]         = useState('');
+  const [emailTouched,  setEmailTouched]  = useState(false);
+  const [loading,       setLoading]       = useState(false);
+  const [sent,          setSent]          = useState(false);
+  const [error,         setError]         = useState<string | null>(null);
+  const [notFound,      setNotFound]      = useState(false);
+  const [resending,     setResending]     = useState(false);
+  const [resent,        setResent]        = useState(false);
 
   const emailValid = emailRegex.test(email);
 
   const sendReset = async (addr: string) => {
-    const { error: err } = await supabase.auth.resetPasswordForEmail(addr, {
-      redirectTo: 'rei://reset-password',
+    const res  = await fetch(API_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email: addr, redirectTo: 'rei://reset-password' }),
     });
-    return err;
+    const json = await res.json();
+    if (!res.ok) {
+      return { status: res.status, message: json.error as string };
+    }
+    return null;
   };
 
   const handleSubmit = async () => {
@@ -35,11 +42,16 @@ export default function ForgotPasswordScreen() {
 
     setLoading(true);
     setError(null);
+    setNotFound(false);
     const err = await sendReset(email);
     setLoading(false);
 
     if (err) {
-      setError(err.message);
+      if (err.status === 404) {
+        setNotFound(true);
+      } else {
+        setError(err.message ?? 'Something went wrong. Please try again.');
+      }
     } else {
       setSent(true);
     }
@@ -136,7 +148,7 @@ export default function ForgotPasswordScreen() {
             emailTouched && emailValid  && styles.inputValid,
           ]}
           value={email}
-          onChangeText={t => { setEmail(t); setError(null); }}
+          onChangeText={t => { setEmail(t); setError(null); setNotFound(false); }}
           onBlur={() => setEmailTouched(true)}
           keyboardType="email-address"
           autoCapitalize="none"
@@ -147,6 +159,17 @@ export default function ForgotPasswordScreen() {
         />
         {emailTouched && !emailValid && (
           <Text style={styles.fieldError}>Please enter a valid email address</Text>
+        )}
+
+        {notFound && (
+          <View style={styles.notFoundBanner}>
+            <Text style={styles.notFoundText}>
+              No account found with that email address.
+            </Text>
+            <TouchableOpacity onPress={() => router.replace('/(auth)/signup')} activeOpacity={0.7}>
+              <Text style={styles.notFoundLink}>Create an account instead →</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {error && <Text style={styles.error}>{error}</Text>}
@@ -222,6 +245,17 @@ const styles = StyleSheet.create({
   inputValid:  { borderColor: Colors.green },
   fieldError:  { color: Colors.red, fontSize: 11, marginTop: 4 },
 
+  notFoundBanner: {
+    backgroundColor: Colors.yellowBg,
+    borderRadius:    10,
+    borderWidth:     1,
+    borderColor:     Colors.yellowBd,
+    padding:         14,
+    marginTop:       12,
+    gap:             6,
+  },
+  notFoundText: { color: '#92400E', fontSize: 13 },
+  notFoundLink: { color: '#B45309', fontSize: 13, fontWeight: '700' },
   error: { color: Colors.red, fontSize: 12, marginTop: 12 },
   btn:   { marginTop: 24 },
 
