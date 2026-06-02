@@ -3,97 +3,45 @@ import type { PropertySnapshot } from '@/lib/scenarios/types';
 
 /**
  * Build PropertySnapshot objects for all properties in a workspace.
- * Uses the pre-computed metric columns stored on the properties table
- * (populated by calculate_property_metrics trigger) to avoid heavy joins.
+ *
+ * Calls the get_portfolio_snapshots RPC which uses the same correct
+ * calculation logic as the web (deploy_phase3e_rpc_layer.sql):
+ *   - Amortised outstanding debt (mirrors JS calcOutstandingBalance)
+ *   - TRUE NOI = income - operating expenses (BEFORE debt service)
+ *   - Cash flow = (NOI - monthly_debt_service × 12) / 12
+ *   - ROE = NOI / equity × 100
+ *
+ * Previously this function read stale pre-computed columns from the
+ * properties table (annual_noi, monthly_debt_service) written by a
+ * buggy trigger that baked debt service into the NOI figure, causing
+ * cash flow to be double-counted.
  */
 export async function buildSnapshots(workspaceId: string): Promise<PropertySnapshot[]> {
-  const { data: properties } = await supabase
-    .from('properties')
-    .select(`
-      id, name, purchase_price, purchase_date,
-      current_market_value, total_equity, monthly_debt_service,
-      annual_noi, roe_percentage
-    `)
-    .eq('workspace_id', workspaceId);
+  const { data, error } = await supabase
+    .rpc('get_portfolio_snapshots', { p_workspace_id: workspaceId });
 
-  if (!properties || properties.length === 0) return [];
+  if (error || !data) return [];
 
-  const propIds = properties.map((p: any) => p.id as string);
+  const json               = data as any;
+  const portfolioAvgROE    = json.portfolio_avg_roe    ?? 0;
+  const totalPortfolioEquity = json.total_portfolio_equity ?? 0;
+  const props              = (json.properties ?? []) as any[];
 
-  // Monthly rent from active leases (needed for annualRent)
-  const { data: leaseRows } = await supabase
-    .from('leases')
-    .select('unit_id, monthly_rent, units!inner(property_id)')
-    .eq('status', 'active')
-    .in('units.property_id', propIds);
-
-  // Annual expenses from last 12 months
-  const oneYearAgo = new Date();
-  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-  const { data: expenseRows } = await supabase
-    .from('expenses')
-    .select('property_id, amount')
-    .in('property_id', propIds)
-    .gte('expense_date', oneYearAgo.toISOString().slice(0, 10));
-
-  // Build property → annualRent map
-  const rentByProp = new Map<string, number>();
-  for (const l of leaseRows ?? []) {
-    const pid = (l.units as any)?.property_id as string | undefined;
-    if (!pid) continue;
-    rentByProp.set(pid, (rentByProp.get(pid) ?? 0) + (l.monthly_rent ?? 0) * 12);
-  }
-
-  // Build property → annualExpenses map
-  const expByProp = new Map<string, number>();
-  for (const e of expenseRows ?? []) {
-    const pid = e.property_id as string;
-    expByProp.set(pid, (expByProp.get(pid) ?? 0) + (e.amount ?? 0));
-  }
-
-  // Portfolio totals (for BuyAnother blended ROE)
-  const totalPortfolioEquity = (properties as any[]).reduce(
-    (s: number, p: any) => s + (p.total_equity ?? 0), 0
-  );
-  const weightedROESum = (properties as any[]).reduce((s: number, p: any) => {
-    const eq = p.total_equity ?? 0;
-    const cf = ((p.annual_noi ?? 0) - (p.monthly_debt_service ?? 0) * 12);
-    const roe = eq > 0 ? cf / eq : 0;
-    return s + roe * eq;
-  }, 0);
-  const portfolioAvgROE = totalPortfolioEquity > 0
-    ? Math.round((weightedROESum / totalPortfolioEquity) * 1000) / 10
-    : 0;
-
-  return (properties as any[]).map((p: any) => {
-    const marketValue      = p.current_market_value ?? 0;
-    const equity           = p.total_equity ?? 0;
-    const outstandingDebt  = Math.max(0, marketValue - equity);
-    const monthlyDebt      = p.monthly_debt_service ?? 0;
-    const noi              = p.annual_noi ?? 0;
-    const annualRent       = rentByProp.get(p.id) ?? 0;
-    const annualOpExp      = annualRent > 0 ? Math.max(0, annualRent - noi) : (expByProp.get(p.id) ?? 0);
-    const monthlyCashFlow  = Math.round((noi - monthlyDebt * 12) / 12);
-    const currentROE       = p.roe_percentage ?? (equity > 0
-      ? Math.round(((noi - monthlyDebt * 12) / equity) * 1000) / 10
-      : null);
-
-    return {
-      id:                    p.id,
-      name:                  p.name,
-      acquisitionPrice:      p.purchase_price ?? 0,
-      acquisitionDate:       p.purchase_date ?? null,
-      marketValue,
-      outstandingDebt:       Math.round(outstandingDebt),
-      equity:                Math.round(equity),
-      annualRent,
-      annualOperatingExpenses: Math.round(annualOpExp),
-      noi,
-      monthlyDebtService:    monthlyDebt,
-      currentROE,
-      monthlyCashFlow,
-      portfolioAvgROE,
-      totalPortfolioEquity:  Math.round(totalPortfolioEquity),
-    } satisfies PropertySnapshot;
-  });
+  return props.map((p: any): PropertySnapshot => ({
+    id:                      p.id,
+    name:                    p.name,
+    acquisitionPrice:        p.acquisition_price       ?? 0,
+    acquisitionDate:         p.acquisition_date        ?? null,
+    marketValue:             p.market_value            ?? 0,
+    outstandingDebt:         p.outstanding_debt        ?? 0,
+    equity:                  p.equity                  ?? 0,
+    annualRent:              p.annual_rent             ?? 0,
+    annualOperatingExpenses: p.annual_operating_expenses ?? 0,
+    noi:                     p.noi                     ?? 0,
+    monthlyDebtService:      p.monthly_debt_service    ?? 0,
+    currentROE:              p.current_roe             ?? null,
+    monthlyCashFlow:         p.monthly_cash_flow       ?? 0,
+    portfolioAvgROE,
+    totalPortfolioEquity,
+  }));
 }

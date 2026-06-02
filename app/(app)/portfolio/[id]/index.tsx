@@ -7,7 +7,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { getProperty, getActiveLeases } from '@/lib/api/properties';
+import { getProperty, getActiveLeases, getPropertyMetrics } from '@/lib/api/properties';
+import type { PropertyMetrics } from '@/types';
 import { getPropertyHealthScore, scoreColor, scoreLabel } from '@/lib/api/healthScore';
 import { Colors } from '@/constants/colors';
 import { Badge } from '@/components/ui/Badge';
@@ -57,6 +58,7 @@ export default function PropertyDetailScreen() {
   const [expenses,    setExpenses]    = useState<Expense[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceEvent[]>([]);
   const [healthScore, setHealthScore] = useState<HealthScoreResult | null>(null);
+  const [metrics,     setMetrics]     = useState<PropertyMetrics | null>(null);
   const [tab,         setTab]         = useState<Tab>('units');
   const [loading,     setLoading]     = useState(true);
   const [refreshing,  setRefreshing]  = useState(false);
@@ -67,9 +69,15 @@ export default function PropertyDetailScreen() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [prop, ls] = await Promise.all([getProperty(id), getActiveLeases(id)]);
+    const now = new Date();
+    const [prop, ls, m] = await Promise.all([
+      getProperty(id),
+      getActiveLeases(id),
+      getPropertyMetrics(id, now.getFullYear(), now.getMonth() + 1).catch(() => null),
+    ]);
     setProperty(prop);
     setLeases(ls);
+    setMetrics(m);
   }, [id]);
 
   const loadExpenses = useCallback(async () => {
@@ -182,7 +190,8 @@ export default function PropertyDetailScreen() {
     );
   }
 
-  const monthlyCF = property.annual_noi != null ? Math.round(property.annual_noi / 12) : null;
+  // Use RPC-computed monthly cash flow (correct: NOI - debt service, no double-counting)
+  const monthlyCF = metrics?.monthly_cash_flow ?? null;
   const openTickets = maintenance.filter(m => m.status !== 'completed').length;
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
 
@@ -203,10 +212,10 @@ export default function PropertyDetailScreen() {
       {/* Stats bar */}
       <View style={styles.statsBar}>
         {[
-          { label: 'Value',     value: fmt(property.current_market_value) },
-          { label: 'Equity',    value: fmt(property.total_equity) },
+          { label: 'Value',     value: fmt(metrics?.current_value    ?? property.current_market_value) },
+          { label: 'Equity',    value: fmt(metrics?.equity           ?? property.total_equity) },
           { label: 'Cash Flow', value: fmt(monthlyCF) },
-          { label: 'ROE',       value: fmtPct(property.roe_percentage) },
+          { label: 'ROE',       value: fmtPct(metrics?.roe           ?? property.roe_percentage) },
         ].map(({ label, value }, i) => (
           <View key={label} style={styles.statItem}>
             {i > 0 && <View style={styles.statDivider} />}

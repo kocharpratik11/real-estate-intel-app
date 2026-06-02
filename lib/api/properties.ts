@@ -71,13 +71,23 @@ async function sumExpenses(propertyIds: string[], year: number, month: number): 
   return (data ?? []).reduce((s: number, e: any) => s + (e.amount ?? 0), 0);
 }
 
-// Lightweight metrics computed from rent_payments + DB-computed property columns
+/**
+ * Lightweight metrics for a single property for a given month.
+ *
+ * Uses get_property_metrics_v2 RPC for financial figures (cash flow, equity,
+ * ROE) so the numbers match exactly what the web shows — same amortised debt,
+ * same NOI calculation, same cash flow formula.
+ *
+ * Rent collection stats (units_paid, collection_rate) are read directly from
+ * rent_payments for the specific month/year requested.
+ */
 export async function getPropertyMetrics(
   propertyId: string,
   year: number,
   month: number,
 ): Promise<PropertyMetrics> {
-  const [rentRes, unitRes, propRes] = await Promise.all([
+  const [rpcRes, rentRes, unitRes] = await Promise.all([
+    supabase.rpc('get_property_metrics_v2', { p_property_id: propertyId }),
     supabase
       .from('rent_payments')
       .select('amount_due, amount_paid, status')
@@ -89,36 +99,25 @@ export async function getPropertyMetrics(
       .from('units')
       .select('id')
       .eq('property_id', propertyId),
-    supabase
-      .from('properties')
-      .select('current_market_value, total_equity, roe_percentage, annual_noi, monthly_debt_service')
-      .eq('id', propertyId)
-      .single(),
   ]);
 
-  const rows     = rentRes.data ?? [];
-  const unitIds  = (unitRes.data ?? []).map((u: any) => u.id as string);
+  const m       = (rpcRes.data ?? {}) as any;
+  const rows    = rentRes.data ?? [];
+  const unitIds = (unitRes.data ?? []).map((u: any) => u.id as string);
   const vacancies = await countVacancies(unitIds);
-  const prop     = propRes.data;
 
-  const totalPaid = rows.reduce((s, r) => s + (r.amount_paid ?? 0), 0);
   const paid  = rows.filter(r => r.status === 'paid').length;
   const total = rows.length;
 
-  // Prefer DB-computed annual_noi / 12 for cash flow; fall back to collected rent
-  const monthlyCashFlow = prop?.annual_noi != null
-    ? Math.round(prop.annual_noi / 12)
-    : totalPaid;
-
   return {
     property_id:       propertyId,
-    monthly_cash_flow: monthlyCashFlow,
+    monthly_cash_flow: m?.monthly_cash_flow ?? 0,
     collection_rate:   total > 0 ? paid / total : 0,
     units_paid:        paid,
     units_total:       total,
-    current_value:     prop?.current_market_value ?? null,
-    equity:            prop?.total_equity          ?? null,
-    roe:               prop?.roe_percentage        ?? null,
+    current_value:     m?.current_value   ?? null,
+    equity:            m?.current_equity  ?? null,
+    roe:               m?.roe_percentage  ?? null,
     vacancies,
   };
 }

@@ -21,8 +21,17 @@
       "versionCode": 1,
       "newArchEnabled": true
     },
+    "updates": {
+      "url": "https://u.expo.dev/d5940bc8-2ee5-4fe5-9623-ae41404b97bb",
+      "enabled": true,
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
     "plugins": [
       "expo-router",
+      "expo-updates",
       "expo-secure-store",
       [
         "expo-notifications",

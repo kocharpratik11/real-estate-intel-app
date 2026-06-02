@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { generateAlerts } from '@/lib/api/alerts';
 import { OptimizerTab } from '@/components/intelligence/OptimizerTab';
 import { ScenariosTab } from '@/components/intelligence/ScenariosTab';
+import { RulesTab } from '@/components/intelligence/RulesTab';
 import { Colors } from '@/constants/colors';
 import type { AppAlert } from '@/types';
 
@@ -18,8 +19,8 @@ const SEV_BD:    Record<string, string> = { emergency: Colors.redBd,    warning:
 const SEV_COLOR: Record<string, string> = { emergency: Colors.red,      warning: Colors.yellow,   info: Colors.indigo };
 const SEV_LABEL: Record<string, string> = { emergency: '🔴 EMERGENCY',  warning: '⚠️ WARNING',    info: 'ℹ️ INFO' };
 
-type Tab = 'Alerts' | 'Optimizer' | 'Scenarios';
-const TABS: Tab[] = ['Alerts', 'Optimizer', 'Scenarios'];
+type Tab = 'Alerts' | 'Optimizer' | 'Scenarios' | 'Rules';
+const TABS: Tab[] = ['Alerts', 'Optimizer', 'Scenarios', 'Rules'];
 
 export default function AlertsScreen() {
   const insets = useSafeAreaInsets();
@@ -73,7 +74,9 @@ export default function AlertsScreen() {
                 : `${alerts.length} alert${alerts.length !== 1 ? 's' : ''} this month`
             : tab === 'Optimizer'
             ? 'AI-powered portfolio recommendations'
-            : 'Model scenarios for each property'}
+            : tab === 'Scenarios'
+            ? 'Model scenarios for each property'
+            : 'Rules engine analysis & AI briefing'}
         </Text>
       </LinearGradient>
 
@@ -144,6 +147,9 @@ export default function AlertsScreen() {
 
       {/* SCENARIOS TAB */}
       {tab === 'Scenarios' && <ScenariosTab workspaceId={workspaceId} />}
+
+      {/* RULES TAB */}
+      {tab === 'Rules' && <RulesTab workspaceId={workspaceId} />}
     </View>
   );
 }
