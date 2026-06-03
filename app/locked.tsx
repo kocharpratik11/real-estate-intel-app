@@ -10,7 +10,7 @@ import { Colors } from '@/constants/colors';
 
 export default function LockedScreen() {
   const insets = useSafeAreaInsets();
-  const { unlockWithBiometrics, signOut } = useAuth();
+  const { unlockWithBiometrics, signOut, biometricLabel } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
 
@@ -65,7 +65,7 @@ export default function LockedScreen() {
               activeOpacity={0.8}
             >
               <Text style={styles.biometricIcon}>󾓦</Text>
-              <Text style={styles.biometricLabel}>Unlock with Face ID</Text>
+              <Text style={styles.biometricLabel}>Unlock with {biometricLabel}</Text>
             </TouchableOpacity>
 
             {error && <Text style={styles.error}>{error}</Text>}

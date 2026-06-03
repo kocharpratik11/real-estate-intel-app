@@ -4,7 +4,7 @@ import {
   StyleSheet, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/colors';
@@ -27,6 +27,9 @@ const ruleStyles = StyleSheet.create({
 });
 
 export default function ResetPasswordScreen() {
+  const { access_token, refresh_token } =
+    useLocalSearchParams<{ access_token?: string; refresh_token?: string }>();
+
   const [password,        setPassword]        = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword,    setShowPassword]    = useState(false);
@@ -49,6 +52,21 @@ export default function ResetPasswordScreen() {
 
     setLoading(true);
     setError(null);
+
+    // Re-establish the recovery session immediately before updating —
+    // this guards against any race condition that may have cleared the session
+    // between the deep link handler and the user pressing this button.
+    if (access_token && refresh_token) {
+      const { error: sessionErr } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+      if (sessionErr) {
+        setLoading(false);
+        setError('This reset link has expired. Please request a new one from the login screen.');
+        return;
+      }
+    }
 
     const { error: err } = await supabase.auth.updateUser({ password });
     setLoading(false);

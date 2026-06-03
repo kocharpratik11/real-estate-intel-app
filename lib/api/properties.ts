@@ -4,7 +4,7 @@ import type { Property, PropertyMetrics, PortfolioSummary, Unit, Lease } from '@
 export async function listProperties(workspaceId: string): Promise<Property[]> {
   const { data, error } = await supabase
     .from('properties')
-    .select('id, name, address_line1, city, state, property_type, unit_count, workspace_id')
+    .select('id, name, address_line1, city, state, property_type, unit_count, workspace_id, monthly_debt_service, annual_noi')
     .eq('workspace_id', workspaceId)
     .order('name');
   if (error) throw error;

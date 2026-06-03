@@ -6,8 +6,8 @@ import {
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '@/lib/supabase';
 import { useWorkspaces } from '@/hooks/useWorkspace';
+import { useAuth } from '@/contexts/AuthContext';
 import { Colors } from '@/constants/colors';
 
 const INITIALS = (name: string) =>
@@ -22,6 +22,7 @@ const ACCENT_PAIRS: [string, string][] = [
 
 export default function WorkspacePickerScreen() {
   const { workspaces, loading } = useWorkspaces();
+  const { signOut } = useAuth();
   const [selecting, setSelecting] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
@@ -104,10 +105,7 @@ export default function WorkspacePickerScreen() {
             <Text style={styles.createLabel}>+   Create new workspace</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.switchBtn} onPress={async () => {
-            await supabase.auth.signOut();
-            router.replace('/(auth)/login');
-          }}>
+          <TouchableOpacity style={styles.switchBtn} onPress={signOut}>
             <Text style={styles.switchLabel}>Sign in to another account</Text>
           </TouchableOpacity>
         </ScrollView>

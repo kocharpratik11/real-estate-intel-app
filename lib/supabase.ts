@@ -1,6 +1,7 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 
 const supabaseUrl  = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseAnon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
@@ -14,7 +15,6 @@ function getStorage() {
     };
   }
   // Native: chunk values >2048 bytes across multiple SecureStore keys
-  const SecureStore = require('expo-secure-store');
   const CHUNK = 1800;
   async function getItem(key: string): Promise<string | null> {
     const first = await SecureStore.getItemAsync(key);

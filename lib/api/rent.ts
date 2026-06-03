@@ -97,7 +97,7 @@ export function buildLedger(payments: RentPayment[]): LedgerEvent[] {
     if (e.type === 'charge' && !e.isCredit) balance += e.amount;
     else balance -= e.amount;
     return { ...e, runningBalance: balance };
-  });
+  }).reverse();
 }
 
 function chargeLabel(p: RentPayment): string {

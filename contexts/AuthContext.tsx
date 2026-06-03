@@ -30,6 +30,7 @@ interface AuthContextValue {
   session:              Session | null;
   biometricEnabled:     boolean;
   biometricAvailable:   boolean;
+  biometricLabel:       string;   // 'Face ID' | 'Touch ID' | 'Biometrics'
   signOut:              () => Promise<void>;
   unlockWithBiometrics: () => Promise<'success' | 'cancelled' | 'unavailable'>;
   setBiometricEnabled:  (enabled: boolean) => Promise<void>;
@@ -50,15 +51,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session,            setSession]            = useState<Session | null>(null);
   const [biometricEnabled,   setBiometricEnabledState]   = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricLabel,     setBiometricLabel]     = useState('Face ID');
 
   // ── On cold start: load session + biometric preference ────────────────────
   useEffect(() => {
     async function init() {
-      // 1. Check hardware availability
-      const hw  = await LocalAuthentication.hasHardwareAsync();
-      const enr = await LocalAuthentication.isEnrolledAsync();
+      // 1. Check hardware availability + detect type
+      const hw    = await LocalAuthentication.hasHardwareAsync();
+      const enr   = await LocalAuthentication.isEnrolledAsync();
       const available = hw && enr;
       setBiometricAvailable(available);
+
+      if (available) {
+        const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+        if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+          setBiometricLabel('Face ID');
+        } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+          setBiometricLabel('Touch ID');
+        } else {
+          setBiometricLabel('Biometrics');
+        }
+      }
 
       // 2. Load current session
       const { data: { session: storedSession } } = await supabase.auth.getSession();
@@ -89,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (event === 'SIGNED_OUT') {
           setSession(null);
           setState('unauthenticated');
-        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'PASSWORD_RECOVERY') {
           setSession(newSession);
           // Only move to authenticated if we're not in loading (init handles that)
           setState(prev =>
@@ -138,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       biometricEnabled,
       biometricAvailable,
+      biometricLabel,
       signOut,
       unlockWithBiometrics,
       setBiometricEnabled,

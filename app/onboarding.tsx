@@ -30,15 +30,6 @@ export default function OnboardingScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // ── TEMP DIAGNOSTICS ─────────────────────────────────────────────────
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log('[onboarding] user.id        :', user.id);
-      console.log('[onboarding] session exists :', !!session);
-      console.log('[onboarding] access_token   :', session?.access_token?.slice(0, 40) ?? 'NONE');
-      console.log('[onboarding] role            :', session?.user?.role);
-      console.log('[onboarding] aud             :', session?.user?.aud);
-      // ─────────────────────────────────────────────────────────────────────
-
       // Create workspace
       const { data: ws, error: wsErr } = await supabase
         .from('workspaces')
@@ -49,11 +40,12 @@ export default function OnboardingScreen() {
       if (wsErr || !ws) throw new Error(wsErr?.message ?? 'Failed to create workspace');
 
       // Add creator as owner member
-      await supabase.from('workspace_members').insert({
+      const { error: memberErr } = await supabase.from('workspace_members').insert({
         workspace_id: ws.id,
         user_id:      user.id,
         role:         'owner',
       });
+      if (memberErr) throw new Error(memberErr.message ?? 'Failed to set up workspace membership');
 
       // Update user metadata with active workspace
       await supabase.auth.updateUser({

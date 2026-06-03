@@ -11,6 +11,7 @@ import { listProperties, getPortfolioSummary } from '@/lib/api/properties';
 import { PropertyRow, PropertyRowData } from '@/components/portfolio/PropertyRow';
 import { Colors } from '@/constants/colors';
 import { hapticLight } from '@/lib/haptics';
+import { isPropertySetupComplete, openWebApp } from '@/lib/utils/propertySetup';
 
 const NOW  = new Date();
 const YEAR = NOW.getFullYear();
@@ -39,10 +40,11 @@ export default function PortfolioScreen() {
   const [properties, setProperties] = useState<PropertyRowData[]>([]);
   const [search,     setSearch]     = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [totalValue, setTotalValue] = useState(0);
-  const [totalCF,    setTotalCF]    = useState(0);
-  const [overallPct, setOverallPct] = useState(0);
-  const [vacancies,  setVacancies]  = useState(0);
+  const [totalValue,      setTotalValue]      = useState(0);
+  const [totalCF,         setTotalCF]         = useState(0);
+  const [overallPct,      setOverallPct]      = useState(0);
+  const [vacancies,       setVacancies]       = useState(0);
+  const [incompleteCount, setIncompleteCount] = useState(0);
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -123,6 +125,7 @@ export default function PortfolioScreen() {
     rows.sort((a, b) => ({ critical: 0, warning: 1, healthy: 2 }[a.health] - { critical: 0, warning: 1, healthy: 2 }[b.health]));
 
     setProperties(rows);
+    setIncompleteCount(rows.filter(r => !isPropertySetupComplete(r)).length);
     setTotalCF(rows.reduce((s, p) => s + p.cashFlow, 0));
     setVacancies(rows.reduce((s, p) => s + (p.vacancies ?? 0), 0));
     setOverallPct(rows.length > 0
@@ -184,6 +187,23 @@ export default function PortfolioScreen() {
             <Text style={styles.summaryLabel}>vacant</Text>
           </View>
         </View>
+
+        {/* Incomplete setup nudge */}
+        {incompleteCount > 0 && (
+          <TouchableOpacity
+            style={styles.setupNudge}
+            onPress={openWebApp}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.nudgeSpark}>✦</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.nudgeTitle}>
+                {incompleteCount} {incompleteCount === 1 ? 'property needs' : 'properties need'} full setup
+              </Text>
+              <Text style={styles.nudgeSub}>Add mortgage, financials & AI insights on assetbrain.app →</Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* Search */}
         <View style={styles.searchRow}>
@@ -301,6 +321,19 @@ const styles = StyleSheet.create({
   list:        { gap: 0, paddingTop: 4 },
   emptySearch: { color: Colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 32, marginBottom: 16 },
 
+  setupNudge: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    backgroundColor:  Colors.aiCard,
+    borderRadius:     12,
+    borderWidth:      1,
+    borderColor:      Colors.aiBorder,
+    marginHorizontal: 16,
+    marginTop:        8,
+    marginBottom:     4,
+    padding:          14,
+    gap:              10,
+  },
   nudge: {
     flexDirection:    'row',
     alignItems:       'center',

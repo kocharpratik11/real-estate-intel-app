@@ -44,7 +44,8 @@ export async function createProperty(input: CreatePropertyInput): Promise<Proper
 }
 
 export type CreateUnitInput = {
-  property_id: string;
+  property_id:  string;
+  workspace_id: string;
   label: string;
   unit_type?: string | null;
   beds?: number | null;
@@ -55,11 +56,12 @@ export async function createUnit(input: CreateUnitInput): Promise<Unit> {
   const { data, error } = await supabase
     .from('units')
     .insert({
-      property_id: input.property_id,
-      label:       input.label,
-      unit_type:   input.unit_type ?? null,
-      beds:        input.beds      ?? null,
-      baths:       input.baths     ?? null,
+      property_id:  input.property_id,
+      workspace_id: input.workspace_id,
+      label:        input.label,
+      unit_type:    input.unit_type ?? null,
+      beds:         input.beds      ?? null,
+      baths:        input.baths     ?? null,
     })
     .select('*')
     .single();

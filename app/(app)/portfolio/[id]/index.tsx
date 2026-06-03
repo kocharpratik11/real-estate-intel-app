@@ -9,6 +9,8 @@ import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { getProperty, getActiveLeases, getPropertyMetrics } from '@/lib/api/properties';
 import type { PropertyMetrics } from '@/types';
+import { isPropertySetupComplete } from '@/lib/utils/propertySetup';
+import { WebSetupNudge } from '@/components/ui/WebSetupNudge';
 import { getPropertyHealthScore, scoreColor, scoreLabel } from '@/lib/api/healthScore';
 import { Colors } from '@/constants/colors';
 import { Badge } from '@/components/ui/Badge';
@@ -286,6 +288,17 @@ export default function PropertyDetailScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.indigo} />}
       >
+        {/* Setup nudge — shown until property is configured on web */}
+        {!isPropertySetupComplete(property) && (
+          <View style={styles.nudgeWrap}>
+            <WebSetupNudge
+              propertyId={property.id}
+              title="Complete setup on assetbrain.app"
+              subtitle="Add mortgage details, AI financials & documents to unlock full insights"
+            />
+          </View>
+        )}
+
         {/* UNITS TAB */}
         {tab === 'units' && (
           <View style={styles.section}>
@@ -454,9 +467,14 @@ export default function PropertyDetailScreen() {
             <Text style={styles.sectionLabel}>DOCUMENTS</Text>
             <View style={styles.emptyState}>
               <Text style={styles.emptyIcon}>📁</Text>
-              <Text style={styles.emptyTitle}>No documents yet</Text>
-              <Text style={styles.emptySub}>Leases, inspection reports, and other files will appear here.</Text>
+              <Text style={styles.emptyTitle}>Manage docs on web</Text>
+              <Text style={styles.emptySub}>Upload leases, inspection reports, and mortgage docs on assetbrain.app for AI-powered analysis.</Text>
             </View>
+            <WebSetupNudge
+              propertyId={property.id}
+              title="Upload documents on assetbrain.app"
+              subtitle="AI reads your leases, mortgage & inspection reports automatically"
+            />
           </View>
         )}
 
@@ -584,6 +602,8 @@ const styles = StyleSheet.create({
   tabBadgeText: { color: Colors.white, fontSize: 9, fontWeight: '700' },
 
   content: { flex: 1, backgroundColor: Colors.bg },
+
+  nudgeWrap: { paddingHorizontal: 16, paddingTop: 16 },
 
   // Sections
   section: { paddingHorizontal: 16, paddingTop: 20 },

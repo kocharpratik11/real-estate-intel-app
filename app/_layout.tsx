@@ -51,7 +51,10 @@ async function handleAuthDeepLink(url: string) {
   if (error || !data.session) return;
 
   if (type === 'recovery') {
-    router.replace('/reset-password');
+    router.replace({
+      pathname: '/reset-password',
+      params: { access_token: accessToken, refresh_token: refreshToken },
+    });
   } else {
     const wsId = data.session.user?.user_metadata?.current_workspace_id;
     router.replace(wsId ? '/workspace-picker' : '/onboarding');
@@ -66,6 +69,13 @@ function RootLayoutInner() {
     SplashScreen.hideAsync();
     if (!__DEV__) checkForUpdate();
   }, []);
+
+  // Redirect to login whenever auth state drops to unauthenticated (sign-out, expired session)
+  useEffect(() => {
+    if (state === 'unauthenticated') {
+      router.replace('/(auth)/login');
+    }
+  }, [state]);
 
   // Deep link handling
   useEffect(() => {

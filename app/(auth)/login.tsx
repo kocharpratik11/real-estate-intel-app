@@ -9,20 +9,46 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/colors';
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function LoginScreen() {
   const [email,        setEmail]        = useState('');
   const [password,     setPassword]     = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState<string | null>(null);
+  const [emailError,   setEmailError]   = useState<string | null>(null);
+
+  const validateEmail = (value: string) => {
+    if (!value) { setEmailError(null); return; }
+    setEmailError(EMAIL_RE.test(value.trim()) ? null : 'Enter a valid email address');
+  };
 
   const handleLogin = async () => {
-    if (!email || !password) { setError('Enter your email and password'); return; }
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) { setError('Enter your email and password'); return; }
+    if (!EMAIL_RE.test(trimmedEmail)) { setEmailError('Enter a valid email address'); return; }
+
     setLoading(true);
     setError(null);
-    const { data: authData, error: err } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: authData, error: err } = await supabase.auth.signInWithPassword({
+      email: trimmedEmail,
+      password,
+    });
     setLoading(false);
-    if (err) { setError(err.message); return; }
+
+    if (err) {
+      const msg = err.message.toLowerCase();
+      if (msg.includes('invalid login') || msg.includes('invalid credentials')) {
+        setError('Incorrect email or password. Check your details or use Forgot password.');
+      } else if (msg.includes('email not confirmed')) {
+        setError('Please confirm your email before signing in.');
+      } else {
+        setError(err.message);
+      }
+      return;
+    }
+
     const wsId = authData.user?.user_metadata?.current_workspace_id;
     if (!wsId) {
       router.replace('/onboarding');
@@ -54,9 +80,10 @@ export default function LoginScreen() {
 
         <Text style={styles.fieldLabel}>EMAIL</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, emailError ? styles.inputError : null]}
           value={email}
-          onChangeText={t => { setEmail(t); setError(null); }}
+          onChangeText={t => { setEmail(t); setError(null); if (emailError) validateEmail(t); }}
+          onBlur={() => validateEmail(email)}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
@@ -64,6 +91,7 @@ export default function LoginScreen() {
           placeholderTextColor={Colors.textMuted}
           selectionColor={Colors.indigo}
         />
+        {emailError && <Text style={styles.fieldError}>{emailError}</Text>}
 
         <View style={styles.passwordHeader}>
           <Text style={styles.fieldLabel}>PASSWORD</Text>
@@ -182,6 +210,8 @@ const styles = StyleSheet.create({
   eyeBtn:  { position: 'absolute', right: 14 },
   eyeIcon: { fontSize: 16 },
 
+  inputError: { borderColor: Colors.red },
+  fieldError: { color: Colors.red, fontSize: 11, marginTop: 4 },
   error: { color: Colors.red, fontSize: 12, marginTop: 10 },
   btn:   { marginTop: 24 },
 

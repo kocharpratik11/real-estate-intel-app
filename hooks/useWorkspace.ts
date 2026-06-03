@@ -12,12 +12,13 @@ export function useWorkspaces() {
     const { data, error: err } = await supabase
       .from('workspace_members')
       .select('role, workspaces(id, name)')
-      .order('created_at');
+      .order('workspace_id');
 
     if (err) { setError(err.message); setLoading(false); return; }
 
     const seen = new Set<string>();
     const unique = (data ?? [])
+      .filter((row: any) => row.workspaces != null)
       .map((row: any) => ({ id: row.workspaces.id, name: row.workspaces.name, role: row.role }))
       .filter((ws: any) => seen.has(ws.id) ? false : (seen.add(ws.id), true));
     setWorkspaces(unique);

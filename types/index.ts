@@ -32,6 +32,7 @@ export type Property = {
 export type Unit = {
   id: string;
   property_id: string;
+  workspace_id: string;
   label: string;
   unit_type?: string | null;
   beds?: number | null;

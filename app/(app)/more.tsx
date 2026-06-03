@@ -37,7 +37,7 @@ function initials(name: string) {
 
 export default function MoreScreen() {
   const insets = useSafeAreaInsets();
-  const { biometricAvailable, biometricEnabled, setBiometricEnabled } = useAuth();
+  const { biometricAvailable, biometricEnabled, setBiometricEnabled, biometricLabel } = useAuth();
   const [displayName,   setDisplayName]   = useState('');
   const [email,         setEmail]         = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
@@ -133,8 +133,8 @@ export default function MoreScreen() {
               <TouchableOpacity style={styles.row} activeOpacity={1}>
                 <Text style={styles.rowIcon}>󾓦</Text>
                 <View style={styles.rowText}>
-                  <Text style={styles.rowLabel}>Face ID</Text>
-                  <Text style={styles.rowSub}>Require Face ID on app open</Text>
+                  <Text style={styles.rowLabel}>{biometricLabel}</Text>
+                  <Text style={styles.rowSub}>Require {biometricLabel} on app open</Text>
                 </View>
                 <Switch
                   value={biometricEnabled}
