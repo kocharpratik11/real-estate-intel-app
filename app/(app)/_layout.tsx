@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { Tabs, router } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import * as Notifications from 'expo-notifications';
@@ -17,12 +17,15 @@ function TabIcon({ label, emoji, focused }: { label: string; emoji: string; focu
 }
 
 function FloatingChatButton() {
+  const pushing = useRef(false);
+  const handlePress = useCallback(() => {
+    if (pushing.current) return;
+    pushing.current = true;
+    router.push('/chat');
+    setTimeout(() => { pushing.current = false; }, 800);
+  }, []);
   return (
-    <TouchableOpacity
-      style={styles.fab}
-      onPress={() => router.push('/chat')}
-      activeOpacity={0.85}
-    >
+    <TouchableOpacity style={styles.fab} onPress={handlePress} activeOpacity={0.85}>
       <Text style={styles.fabIcon}>✦</Text>
     </TouchableOpacity>
   );

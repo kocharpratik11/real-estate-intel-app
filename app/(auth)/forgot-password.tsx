@@ -122,6 +122,9 @@ export default function ForgotPasswordScreen() {
       style={styles.root}
     >
       <LinearGradient colors={['#6366F1', '#7C3AED']} style={styles.hero}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Text style={styles.backLabel}>‹ Back to sign in</Text>
+        </TouchableOpacity>
         <View style={styles.logoMark}>
           <Text style={styles.logoSpark}>🔒</Text>
         </View>
@@ -192,11 +195,14 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
 
   hero: {
-    paddingTop:    72,
-    paddingBottom: 40,
-    alignItems:    'center',
-    gap:           8,
+    paddingTop:        48,
+    paddingBottom:     40,
+    paddingHorizontal: 16,
+    alignItems:        'center',
+    gap:               8,
   },
+  backBtn:   { alignSelf: 'flex-start', marginBottom: 8, padding: 4 },
+  backLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 15 },
   logoMark: {
     width:           64,
     height:          64,

@@ -6,6 +6,7 @@ import {
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { supabase } from '@/lib/supabase';
 import { useWorkspaces } from '@/hooks/useWorkspace';
 import { useAuth } from '@/contexts/AuthContext';
 import { Colors } from '@/constants/colors';
@@ -40,8 +41,11 @@ export default function WorkspacePickerScreen() {
       {/* Gradient hero */}
       <LinearGradient
         colors={['#6366F1', '#7C3AED']}
-        style={[styles.hero, { paddingTop: insets.top + 24 }]}
+        style={[styles.hero, { paddingTop: insets.top + 12 }]}
       >
+        <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
+          <Text style={styles.closeBtnLabel}>✕</Text>
+        </TouchableOpacity>
         <View style={styles.logoMark}>
           <Text style={styles.logoMarkText}>✦</Text>
         </View>
@@ -100,7 +104,7 @@ export default function WorkspacePickerScreen() {
           <TouchableOpacity
             style={styles.createBtn}
             activeOpacity={0.8}
-            onPress={() => router.push('/onboarding')}
+            onPress={() => router.replace('/onboarding')}
           >
             <Text style={styles.createLabel}>+   Create new workspace</Text>
           </TouchableOpacity>
@@ -122,6 +126,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap:               6,
   },
+  closeBtn: {
+    alignSelf:   'flex-end',
+    padding:     4,
+    marginBottom: 8,
+  },
+  closeBtnLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 18 },
   logoMark: {
     width:           44,
     height:          44,

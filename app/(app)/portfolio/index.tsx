@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TextInput,
   TouchableOpacity, StyleSheet, RefreshControl,
@@ -37,6 +37,7 @@ const fmtValue = (n: number) => {
 
 export default function PortfolioScreen() {
   const insets = useSafeAreaInsets();
+  const addPushing = useRef(false);
   const [properties, setProperties] = useState<PropertyRowData[]>([]);
   const [search,     setSearch]     = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -263,7 +264,13 @@ export default function PortfolioScreen() {
       <TouchableOpacity
         style={[styles.fab, { bottom: insets.bottom + 80 }]}
         activeOpacity={0.8}
-        onPress={() => { hapticLight(); router.push('/(app)/portfolio/add'); }}
+        onPress={() => {
+          if (addPushing.current) return;
+          addPushing.current = true;
+          hapticLight();
+          router.push('/(app)/portfolio/add');
+          setTimeout(() => { addPushing.current = false; }, 800);
+        }}
       >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
