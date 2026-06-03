@@ -11,7 +11,6 @@ import { getPortfolioSummary } from '@/lib/api/properties';
 import { generateAlerts } from '@/lib/api/alerts';
 import { getPreferences, updatePreferences } from '@/lib/api/preferences';
 import { getCachedInsights, refreshInsights } from '@/lib/api/insights';
-import { openWebApp } from '@/lib/utils/propertySetup';
 import { AIHeroCard } from '@/components/home/AIHeroCard';
 import { QuickStats } from '@/components/home/QuickStats';
 import { RecentActivity, ActivityItem } from '@/components/home/RecentActivity';
@@ -82,9 +81,8 @@ export default function HomeScreen() {
   const [summary,       setSummary]       = useState<PortfolioSummary | null>(null);
   const [insights,      setInsights]      = useState<Insight[]>([makeSummaryInsight(null)]);
   const [insightIdx,    setInsightIdx]    = useState(0);
-  const [actionAlerts,     setActionAlerts]     = useState<AppAlert[]>([]);
-  const [activity,         setActivity]         = useState<ActivityItem[]>([]);
-  const [incompleteProps,  setIncompleteProps]  = useState(0);
+  const [actionAlerts,  setActionAlerts]  = useState<AppAlert[]>([]);
+  const [activity,      setActivity]      = useState<ActivityItem[]>([]);
   const [briefingMode,  setBriefingMode]  = useState<BriefingMode>('daily');
   const [refreshing,    setRefreshing]    = useState(false);
   const activeWsId = useRef<string | null>(null);
@@ -115,24 +113,16 @@ export default function HomeScreen() {
     const year  = now.getFullYear();
     const month = now.getMonth() + 1;
 
-    const [sum, alerts, propsRes, cached, prefs, incompleteRes] = await Promise.all([
+    const [sum, alerts, propsRes, cached, prefs] = await Promise.all([
       getPortfolioSummary(wsId, year, month).catch(() => null),
       generateAlerts(wsId, year, month).catch(() => []),
       supabase.from('properties').select('id').eq('workspace_id', wsId),
       getCachedInsights(wsId).catch(() => null),
       getPreferences().catch(() => null),
-      supabase
-        .from('properties')
-        .select('id', { count: 'exact', head: true })
-        .eq('workspace_id', wsId)
-        .is('monthly_debt_service', null)
-        .is('annual_noi', null)
-        .catch(() => ({ count: 0 })),
     ]);
 
     if (sum) setSummary(sum);
     setActionAlerts(alerts.slice(0, 6));
-    setIncompleteProps((incompleteRes as any)?.count ?? 0);
 
     // Update briefing mode from prefs (source of truth from DB)
     if (prefs) setBriefingMode(prefs.briefing_mode);
@@ -347,23 +337,6 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Property setup nudge */}
-        {incompleteProps > 0 && (
-          <TouchableOpacity
-            style={styles.setupNudge}
-            onPress={openWebApp}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.setupNudgeSpark}>✦</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.setupNudgeTitle}>
-                {incompleteProps} {incompleteProps === 1 ? 'property' : 'properties'} need full setup
-              </Text>
-              <Text style={styles.setupNudgeSub}>Add mortgage & AI financials on assetbrain.app →</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-
         {/* Recent Activity */}
         {visibleActivity.length > 0 && (
           <RecentActivity items={visibleActivity} onSeeAll={() => router.push('/(app)/portfolio')} />
@@ -447,23 +420,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   seeAll: { color: Colors.indigo, fontSize: 10 },
-
-  // Setup nudge
-  setupNudge: {
-    flexDirection:    'row',
-    alignItems:       'center',
-    backgroundColor:  Colors.aiCard,
-    borderRadius:     12,
-    borderWidth:      1,
-    borderColor:      Colors.aiBorder,
-    marginHorizontal: 16,
-    marginTop:        20,
-    padding:          14,
-    gap:              10,
-  },
-  setupNudgeSpark: { color: Colors.indigo, fontSize: 16, fontWeight: '700' },
-  setupNudgeTitle: { color: Colors.text, fontSize: 13, fontWeight: '600' },
-  setupNudgeSub:   { color: Colors.indigo, fontSize: 11, marginTop: 2 },
 
   // Action queue row
   actionRow: {

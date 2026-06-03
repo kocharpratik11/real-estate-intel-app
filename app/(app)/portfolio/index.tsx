@@ -11,7 +11,7 @@ import { listProperties, getPortfolioSummary } from '@/lib/api/properties';
 import { PropertyRow, PropertyRowData } from '@/components/portfolio/PropertyRow';
 import { Colors } from '@/constants/colors';
 import { hapticLight } from '@/lib/haptics';
-import { isPropertySetupComplete, openWebApp } from '@/lib/utils/propertySetup';
+import { openWebApp } from '@/lib/utils/propertySetup';
 
 const NOW  = new Date();
 const YEAR = NOW.getFullYear();
@@ -126,8 +126,18 @@ export default function PortfolioScreen() {
     rows.sort((a, b) => ({ critical: 0, warning: 1, healthy: 2 }[a.health] - { critical: 0, warning: 1, healthy: 2 }[b.health]));
 
     setProperties(rows);
-    setIncompleteCount(rows.filter(r => !isPropertySetupComplete(r)).length);
     setTotalCF(rows.reduce((s, p) => s + p.cashFlow, 0));
+
+    // Separate count query — avoids relying on listProperties for financial fields
+    if (wsId) {
+      const { count } = await supabase
+        .from('properties')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', wsId)
+        .is('monthly_debt_service', null)
+        .is('annual_noi', null);
+      setIncompleteCount(count ?? 0);
+    }
     setVacancies(rows.reduce((s, p) => s + (p.vacancies ?? 0), 0));
     setOverallPct(rows.length > 0
       ? Math.round(rows.reduce((s, p) => s + p.collectionRate, 0) / rows.length * 100)
