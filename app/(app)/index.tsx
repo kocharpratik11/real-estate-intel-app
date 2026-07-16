@@ -14,7 +14,7 @@ import { getCachedInsights, refreshInsights } from '@/lib/api/insights';
 import { AIHeroCard } from '@/components/home/AIHeroCard';
 import { QuickStats } from '@/components/home/QuickStats';
 import { RecentActivity, ActivityItem } from '@/components/home/RecentActivity';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/theme';
 import type { PortfolioSummary, AppAlert } from '@/types';
 
 type BriefingMode = 'daily' | 'weekly' | 'monthly';
@@ -197,7 +197,7 @@ export default function HomeScreen() {
           subtitle:  `${r.units?.label ?? 'Unit'}  •  ${r.properties?.name ?? ''}  •  $${r.amount_paid?.toLocaleString()}`,
           time:      r.paid_date ? new Date(r.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '',
           rawDate:   r.paid_date ? (r.paid_date as string).slice(0, 10) : '',
-          timeColor: Colors.green,
+          timeColor: Colors.success,
           onPress:   () => {},
         }))
       );
@@ -241,7 +241,7 @@ export default function HomeScreen() {
   return (
     <View style={styles.root}>
       {/* Gradient hero header */}
-      <LinearGradient colors={['#6366F1', '#7C3AED']} style={[styles.hero, { paddingTop: insets.top + 12 }]}>
+      <LinearGradient colors={Gradients.primary} style={[styles.hero, { paddingTop: insets.top + 12 }]}>
         {/* Top row: greeting + workspace + bell */}
         <View style={styles.heroTop}>
           <View style={{ flex: 1 }}>
@@ -286,7 +286,7 @@ export default function HomeScreen() {
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.indigo} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.blue} />}
       >
         {/* AI Hero Card */}
         <AIHeroCard
@@ -325,7 +325,7 @@ export default function HomeScreen() {
                 activeOpacity={0.8}
               >
                 <View style={[styles.severityDot, {
-                  backgroundColor: alert.severity === 'emergency' ? Colors.red : Colors.yellow,
+                  backgroundColor: alert.severity === 'emergency' ? Colors.error : Colors.warning,
                 }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.actionTitle}>{alert.title}</Text>
@@ -349,7 +349,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: Colors.bg },
+  root:   { flex: 1, backgroundColor: Colors.bgPrimary },
 
   // Hero
   hero: {
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom:   16,
   },
-  greeting: { color: Colors.white, fontSize: 20, fontWeight: '700', marginBottom: 6 },
+  greeting: { color: '#FFFFFF', fontSize: 20, fontWeight: '700', marginBottom: 6 },
   workspacePill: {
     backgroundColor:   'rgba(255,255,255,0.18)',
     borderRadius:      13,
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     width:           8,
     height:          8,
     borderRadius:    4,
-    backgroundColor: Colors.red,
+    backgroundColor: Colors.error,
     borderWidth:     1.5,
     borderColor:     Colors.purple,
   },
@@ -398,11 +398,11 @@ const styles = StyleSheet.create({
     borderColor:       'rgba(255,255,255,0.2)',
   },
   chipActive: {
-    backgroundColor: Colors.white,
-    borderColor:     Colors.white,
+    backgroundColor: '#FFFFFF',
+    borderColor:     '#FFFFFF',
   },
   chipLabel:       { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '500' },
-  chipLabelActive: { color: Colors.indigo, fontWeight: '700' },
+  chipLabelActive: { color: Colors.blue, fontWeight: '700' },
 
   // Content
   scroll: { flex: 1 },
@@ -414,30 +414,30 @@ const styles = StyleSheet.create({
     marginBottom:   4,
   },
   sectionLabel: {
-    color:         Colors.textMuted,
+    color:         Colors.textTertiary,
     fontSize:      9,
     fontWeight:    '700',
     letterSpacing: 0.8,
   },
-  seeAll: { color: Colors.indigo, fontSize: 10 },
+  seeAll: { color: Colors.blue, fontSize: 10 },
 
   // Action queue row
   actionRow: {
     flexDirection:   'row',
     alignItems:      'center',
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.glassBg,
     borderRadius:    12,
     borderWidth:     1,
-    borderColor:     Colors.border,
+    borderColor:     Colors.glassBorder,
     padding:         14,
     gap:             12,
   },
   actionRowEmergency: {
-    borderColor:     Colors.redBd,
-    backgroundColor: Colors.redBg,
+    borderColor:     Colors.error,
+    backgroundColor: Colors.errorBg,
   },
   severityDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
-  actionTitle: { color: Colors.text, fontSize: 13, fontWeight: '600', marginBottom: 2 },
-  actionSub:   { color: Colors.textMuted, fontSize: 10 },
-  actionCTA:   { color: Colors.indigo, fontSize: 11, fontWeight: '600', flexShrink: 0 },
+  actionTitle: { color: Colors.textPrimary, fontSize: 13, fontWeight: '600', marginBottom: 2 },
+  actionSub:   { color: Colors.textTertiary, fontSize: 10 },
+  actionCTA:   { color: Colors.blue, fontSize: 11, fontWeight: '600', flexShrink: 0 },
 });

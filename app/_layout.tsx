@@ -6,7 +6,7 @@ import * as Updates from 'expo-updates';
 import * as Linking from 'expo-linking';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { supabase } from '@/lib/supabase';
-import { Colors } from '@/constants/colors';
+import { Colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import LockedScreen from './locked';
 
@@ -90,7 +90,7 @@ function RootLayoutInner() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.bg } }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.bgPrimary } }}>
       <Stack.Screen name="(auth)"           options={{ animation: 'fade' }} />
       <Stack.Screen name="(app)"            options={{ animation: 'fade' }} />
       <Stack.Screen name="workspace-picker" options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
@@ -104,8 +104,8 @@ function RootLayoutInner() {
 // ── Root layout — wraps everything in AuthProvider ────────────────────────────
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.bg }}>
-      <StatusBar style="dark" backgroundColor={Colors.bg} />
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.bgPrimary }}>
+      <StatusBar style="light" backgroundColor={Colors.bgPrimary} />
       <AuthProvider>
         <RootLayoutInner />
       </AuthProvider>

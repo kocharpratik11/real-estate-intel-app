@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Colors } from '@/constants/colors';
+import { Colors } from '@/constants/theme';
 import type { PortfolioSummary } from '@/types';
 
 type Props = {
@@ -22,7 +22,7 @@ export function QuickStats({ summary, onPress }: Props) {
           <View style={styles.barTrack}>
             <View style={[styles.barFill, { width: `${pct}%` }]} />
           </View>
-          <Text style={[styles.pct, { color: pct >= 80 ? Colors.green : pct >= 60 ? Colors.yellow : Colors.red }]}>
+          <Text style={[styles.pct, { color: pct >= 80 ? Colors.success : pct >= 60 ? Colors.warning : Colors.error }]}>
             {pct}%
           </Text>
         </View>
@@ -37,12 +37,12 @@ export function QuickStats({ summary, onPress }: Props) {
         <View style={styles.divider} />
 
         <View style={styles.stat}>
-          <Text style={[styles.value, { color: summary.vacancies > 0 ? Colors.red : Colors.text }]}>
+          <Text style={[styles.value, { color: summary.vacancies > 0 ? Colors.error : Colors.textPrimary }]}>
             {summary.vacancies} vacant
           </Text>
           <Text style={styles.label}>units</Text>
           {summary.longest_vacancy_days > 0 && (
-            <Text style={[styles.trend, { color: Colors.red }]}>
+            <Text style={[styles.trend, { color: Colors.error }]}>
               {summary.longest_vacancy_days}d
             </Text>
           )}
@@ -55,10 +55,10 @@ export function QuickStats({ summary, onPress }: Props) {
 const styles = StyleSheet.create({
   container: {
     flexDirection:   'row',
-    backgroundColor: Colors.aiCard,
+    backgroundColor: Colors.glassBg,
     borderRadius:    14,
     borderWidth:     1,
-    borderColor:     Colors.aiBorder,
+    borderColor:     Colors.glassBorder,
     marginHorizontal: 16,
     paddingVertical:  12,
     marginTop:       10,
@@ -69,12 +69,12 @@ const styles = StyleSheet.create({
     gap:             2,
   },
   value: {
-    color:      Colors.text,
+    color:      Colors.textPrimary,
     fontSize:   16,
     fontWeight: '700',
   },
   label: {
-    color:    Colors.textMuted,
+    color:    Colors.textTertiary,
     fontSize: 9,
     marginTop: 2,
   },
@@ -83,25 +83,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   trend: {
-    color:    Colors.green,
+    color:    Colors.success,
     fontSize: 9,
     fontWeight: '600',
   },
   barTrack: {
     height:          3,
-    backgroundColor: Colors.border,
+    backgroundColor: Colors.glassBorder,
     borderRadius:    2,
     marginTop:       4,
     overflow:        'hidden',
   },
   barFill: {
     height:          3,
-    backgroundColor: Colors.green,
+    backgroundColor: Colors.success,
     borderRadius:    2,
   },
   divider: {
     width:           1,
-    backgroundColor: Colors.border,
+    backgroundColor: Colors.glassBorder,
     marginVertical:  4,
   },
 });

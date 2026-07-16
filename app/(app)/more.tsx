@@ -3,21 +3,22 @@ import { View, Text, TouchableOpacity, ScrollView, Switch, StyleSheet, Alert as 
 import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 
-type RowProps = { icon: string; label: string; sub?: string; onPress: () => void; danger?: boolean };
+type RowProps = { icon: keyof typeof Ionicons.glyphMap; label: string; sub?: string; onPress: () => void; danger?: boolean };
 
 function Row({ icon, label, sub, onPress, danger }: RowProps) {
   return (
     <TouchableOpacity onPress={onPress} style={styles.row} activeOpacity={0.7}>
-      <Text style={styles.rowIcon}>{icon}</Text>
+      <Ionicons name={icon} size={18} color={danger ? Colors.error : Colors.blue} style={styles.rowIcon} />
       <View style={styles.rowText}>
-        <Text style={[styles.rowLabel, danger && { color: Colors.red }]}>{label}</Text>
+        <Text style={[styles.rowLabel, danger && { color: Colors.error }]}>{label}</Text>
         {sub && <Text style={styles.rowSub}>{sub}</Text>}
       </View>
-      {!danger && <Text style={styles.rowChevron}>›</Text>}
+      {!danger && <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />}
     </TouchableOpacity>
   );
 }
@@ -37,7 +38,7 @@ function initials(name: string) {
 
 export default function MoreScreen() {
   const insets = useSafeAreaInsets();
-  const { biometricAvailable, biometricEnabled, setBiometricEnabled, biometricLabel } = useAuth();
+  const { biometricAvailable, biometricEnabled, setBiometricEnabled, biometricLabel, signOut } = useAuth();
   const [displayName,   setDisplayName]   = useState('');
   const [email,         setEmail]         = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
@@ -60,8 +61,6 @@ export default function MoreScreen() {
   const soon = (label: string) => () =>
     RNAlert.alert(label, 'This feature is not available yet.');
 
-  const { signOut } = useAuth();
-
   const handleSignOut = () => {
     RNAlert.alert('Sign Out', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
@@ -80,12 +79,12 @@ export default function MoreScreen() {
   const roleLabel = workspaceRole.charAt(0).toUpperCase() + workspaceRole.slice(1);
 
   return (
-    <View style={[styles.root, { backgroundColor: Colors.indigo }]}>
+    <View style={styles.root}>
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Profile hero */}
         <LinearGradient
-          colors={['#6366F1', '#7C3AED']}
+          colors={Gradients.primary}
           style={[styles.hero, { paddingTop: insets.top + 20 }]}
         >
           <View style={styles.avatar}>
@@ -107,31 +106,31 @@ export default function MoreScreen() {
         <View style={styles.content}>
           <Section title="WORKSPACE">
             <Row
-              icon="⊞"
+              icon="business"
               label={workspaceName || 'Select workspace'}
               sub={workspaceName ? roleLabel : 'Tap to choose a workspace'}
               onPress={() => router.push('/workspace-picker')}
             />
-            <Row icon="+" label="Add / Join Workspace" sub="Create or accept an invite" onPress={soon('Add / Join Workspace')} />
+            <Row icon="people" label="Add / Join Workspace" sub="Create or accept an invite" onPress={soon('Add / Join Workspace')} />
           </Section>
 
           <Section title="PREFERENCES">
-            <Row icon="🔔" label="Notifications" sub="Alerts, reminders, updates" onPress={() => router.push('/(app)/notification-settings')} />
-            <Row icon="💵" label="Currency"      sub="USD — US Dollar"            onPress={soon('Currency')} />
-            <Row icon="📅" label="Date Format"   sub="MM/DD/YYYY"                 onPress={soon('Date Format')} />
+            <Row icon="notifications" label="Notifications" sub="Alerts, reminders, updates" onPress={() => router.push('/(app)/notification-settings')} />
+            <Row icon="cash"          label="Currency"      sub="USD — US Dollar"            onPress={soon('Currency')} />
+            <Row icon="calendar"      label="Date Format"   sub="MM/DD/YYYY"                 onPress={soon('Date Format')} />
           </Section>
 
           <Section title="SUPPORT">
-            <Row icon="❓" label="Help Center"   onPress={soon('Help Center')} />
-            <Row icon="💬" label="Send Feedback" onPress={soon('Send Feedback')} />
-            <Row icon="⭐" label="Rate the App"  onPress={soon('Rate the App')} />
+            <Row icon="help-circle" label="Help Center"   onPress={soon('Help Center')} />
+            <Row icon="mail"        label="Send Feedback" onPress={soon('Send Feedback')} />
+            <Row icon="star"        label="Rate the App"  onPress={soon('Rate the App')} />
           </Section>
 
           <Section title="ACCOUNT">
-            <Row icon="🔒" label="Change Password" onPress={() => router.push('/reset-password')} />
+            <Row icon="lock-closed" label="Change Password" onPress={() => router.push('/reset-password')} />
             {biometricAvailable && (
               <TouchableOpacity style={styles.row} activeOpacity={1}>
-                <Text style={styles.rowIcon}>󾓦</Text>
+                <Ionicons name="finger-print" size={18} color={Colors.blue} style={styles.rowIcon} />
                 <View style={styles.rowText}>
                   <Text style={styles.rowLabel}>{biometricLabel}</Text>
                   <Text style={styles.rowSub}>Require {biometricLabel} on app open</Text>
@@ -139,12 +138,12 @@ export default function MoreScreen() {
                 <Switch
                   value={biometricEnabled}
                   onValueChange={handleBiometricToggle}
-                  trackColor={{ false: Colors.border, true: Colors.indigo }}
-                  thumbColor={Colors.white}
+                  trackColor={{ false: Colors.bgTertiary, true: Colors.blue }}
+                  thumbColor="#FFFFFF"
                 />
               </TouchableOpacity>
             )}
-            <Row icon="🚪" label="Sign Out" onPress={handleSignOut} danger />
+            <Row icon="log-out" label="Sign Out" onPress={handleSignOut} danger />
           </Section>
 
           <Text style={styles.version}>Asset Brain  v0.1.0</Text>
@@ -156,7 +155,7 @@ export default function MoreScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.bg },
+  root: { flex: 1, backgroundColor: Colors.bgPrimary },
   hero: {
     alignItems:        'center',
     paddingBottom:     28,
@@ -174,8 +173,8 @@ const styles = StyleSheet.create({
     justifyContent:  'center',
     marginBottom:    4,
   },
-  avatarText:   { color: Colors.white, fontSize: 22, fontWeight: '700' },
-  profileName:  { color: Colors.white, fontSize: 18, fontWeight: '700' },
+  avatarText:   { color: '#FFFFFF', fontSize: 22, fontWeight: '700' },
+  profileName:  { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
   profileEmail: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: -2 },
   wsBadge: {
     backgroundColor:   'rgba(255,255,255,0.15)',
@@ -192,21 +191,21 @@ const styles = StyleSheet.create({
     paddingVertical:   8,
     marginTop:         8,
   },
-  editLabel: { color: Colors.white, fontSize: 12, fontWeight: '600' },
-  content:   { backgroundColor: Colors.bg, paddingTop: 20 },
+  editLabel: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
+  content:   { backgroundColor: Colors.bgPrimary, paddingTop: 20 },
   section:   { marginHorizontal: 16, marginBottom: 20 },
   sectionTitle: {
-    color:         Colors.textMuted,
+    color:         Colors.textTertiary,
     fontSize:      9,
     fontWeight:    '700',
     letterSpacing: 0.8,
     marginBottom:  8,
   },
   sectionCard: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.bgSecondary,
     borderRadius:    12,
     borderWidth:     1,
-    borderColor:     Colors.border,
+    borderColor:     Colors.glassBorder,
     overflow:        'hidden',
   },
   row: {
@@ -215,13 +214,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical:   14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.glassBorder,
     gap:               12,
   },
-  rowIcon:    { fontSize: 16, width: 22 },
+  rowIcon:    { width: 22 },
   rowText:    { flex: 1 },
-  rowLabel:   { color: Colors.text, fontSize: 14 },
-  rowSub:     { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
-  rowChevron: { color: Colors.textMuted, fontSize: 18 },
-  version:    { color: Colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: 8 },
+  rowLabel:   { color: Colors.textPrimary, fontSize: 14 },
+  rowSub:     { color: Colors.textTertiary, fontSize: 11, marginTop: 2 },
+  version:    { color: Colors.textTertiary, fontSize: 11, textAlign: 'center', marginTop: 8 },
 });

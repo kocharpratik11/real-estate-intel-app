@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/theme';
 
 type Insight = {
   title: string;
@@ -22,7 +22,7 @@ type Props = {
 export function AIHeroCard({ insight, total, current, onDotPress, onDismiss }: Props) {
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#6366F1', '#7C3AED']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientStrip} />
+      <LinearGradient colors={Gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientStrip} />
 
       <View style={styles.inner}>
         <View style={styles.labelPill}>
@@ -60,10 +60,10 @@ export function AIHeroCard({ insight, total, current, onDotPress, onDismiss }: P
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.aiCard,
+    backgroundColor: Colors.glassBg,
     borderRadius:    16,
     borderWidth:     1.5,
-    borderColor:     Colors.aiBorder,
+    borderColor:     Colors.glassBorderHover,
     overflow:        'hidden',
     marginHorizontal: 16,
     marginTop:       8,
@@ -71,55 +71,55 @@ const styles = StyleSheet.create({
   gradientStrip: { height: 4 },
   inner: { padding: 16, gap: 10 },
   labelPill: {
-    backgroundColor: Colors.aiDark,
+    backgroundColor: Colors.bgTertiary,
     borderRadius:    11,
     borderWidth:     1,
-    borderColor:     Colors.aiBorder,
+    borderColor:     Colors.glassBorderHover,
     paddingHorizontal: 10,
     paddingVertical:   4,
     alignSelf:       'flex-start',
   },
   labelText: {
-    color:         Colors.indigo,
+    color:         Colors.blue,
     fontSize:      9,
     fontWeight:    '700',
     letterSpacing: 0.5,
   },
   headline: {
-    color:      Colors.text,
+    color:      Colors.textPrimary,
     fontSize:   18,
     fontWeight: '700',
     lineHeight: 24,
   },
   body: {
-    color:      Colors.textMuted,
+    color:      Colors.textSecondary,
     fontSize:   12,
     lineHeight: 18,
   },
   actions: { flexDirection: 'row', gap: 10, marginTop: 4 },
   btnPrimary: {
-    backgroundColor:   Colors.indigo,
+    backgroundColor:   Colors.blue,
     borderRadius:      10,
     paddingHorizontal: 16,
     paddingVertical:   9,
   },
-  btnPrimaryLabel: { color: Colors.white, fontSize: 13, fontWeight: '600' },
+  btnPrimaryLabel: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
   btnSecondary: {
-    backgroundColor:   Colors.aiDark,
+    backgroundColor:   Colors.bgTertiary,
     borderRadius:      10,
     borderWidth:       1,
-    borderColor:       Colors.border,
+    borderColor:       Colors.glassBorder,
     paddingHorizontal: 16,
     paddingVertical:   9,
   },
-  btnSecondaryLabel: { color: Colors.textSub, fontSize: 13 },
+  btnSecondaryLabel: { color: Colors.textSecondary, fontSize: 13 },
   dots: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   dot: {
     width:           6,
     height:          3,
     borderRadius:    2,
-    backgroundColor: Colors.border,
+    backgroundColor: Colors.glassBorder,
   },
-  dotActive: { width: 20, backgroundColor: Colors.indigo },
-  moreLabel: { color: Colors.textMuted, fontSize: 10, marginLeft: 8 },
+  dotActive: { width: 20, backgroundColor: Colors.blue },
+  moreLabel: { color: Colors.textTertiary, fontSize: 10, marginLeft: 8 },
 });

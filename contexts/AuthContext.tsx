@@ -14,10 +14,11 @@
 import {
   createContext, useContext, useEffect, useState, useCallback, ReactNode,
 } from 'react';
-import { Session } from '@supabase/supabase-js';
+import { Session, User } from '@supabase/supabase-js';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from '@/lib/supabase';
+import type { Workspace } from '@/types';
 
 // ── Storage key ───────────────────────────────────────────────────────────────
 const BIOMETRIC_KEY = 'assetbrain_biometric_enabled';
@@ -28,12 +29,18 @@ export type AuthState = 'loading' | 'unauthenticated' | 'locked' | 'authenticate
 interface AuthContextValue {
   state:                AuthState;
   session:              Session | null;
+  user:                 User | null;
+  workspace:            Workspace | null;
+  loading:              boolean;
   biometricEnabled:     boolean;
   biometricAvailable:   boolean;
   biometricLabel:       string;   // 'Face ID' | 'Touch ID' | 'Biometrics'
+  signIn:               (email: string, password: string) => Promise<{ error: any }>;
+  signUp:               (email: string, password: string) => Promise<{ error: any }>;
   signOut:              () => Promise<void>;
   unlockWithBiometrics: () => Promise<'success' | 'cancelled' | 'unavailable'>;
   setBiometricEnabled:  (enabled: boolean) => Promise<void>;
+  setWorkspace:         (workspace: Workspace) => void;
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -49,6 +56,7 @@ export function useAuth(): AuthContextValue {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state,              setState]              = useState<AuthState>('loading');
   const [session,            setSession]            = useState<Session | null>(null);
+  const [workspace,          setWorkspaceState]     = useState<Workspace | null>(null);
   const [biometricEnabled,   setBiometricEnabledState]   = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricLabel,     setBiometricLabel]     = useState('Face ID');
@@ -114,6 +122,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // ── Derive active workspace from user metadata whenever session changes ──
+  useEffect(() => {
+    const meta = session?.user?.user_metadata;
+    if (meta?.current_workspace_id) {
+      setWorkspaceState(prev =>
+        prev?.id === meta.current_workspace_id
+          ? prev
+          : { id: meta.current_workspace_id, name: meta.current_workspace_name ?? '', role: prev?.role ?? 'operator' }
+      );
+    } else if (!session) {
+      setWorkspaceState(null);
+    }
+  }, [session]);
+
+  // ── Sign in / sign up ─────────────────────────────────────────────────────
+  const signIn = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error };
+  }, []);
+
+  const signUp = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({ email, password });
+    return { error };
+  }, []);
+
+  // ── Set active workspace (persists to user metadata, mirrors workspace-picker) ──
+  const setWorkspace = useCallback((ws: Workspace) => {
+    setWorkspaceState(ws);
+    supabase.auth.updateUser({
+      data: { current_workspace_id: ws.id, current_workspace_name: ws.name },
+    }).catch(() => {});
+  }, []);
+
   // ── Unlock with biometrics ────────────────────────────────────────────────
   const unlockWithBiometrics = useCallback(async () => {
     if (!biometricAvailable) return 'unavailable' as const;
@@ -136,6 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Sign out ──────────────────────────────────────────────────────────────
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
+    setWorkspaceState(null);
     // onAuthStateChange will handle state → 'unauthenticated'
   }, []);
 
@@ -149,12 +191,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       state,
       session,
+      user: session?.user ?? null,
+      workspace,
+      loading: state === 'loading',
       biometricEnabled,
       biometricAvailable,
       biometricLabel,
+      signIn,
+      signUp,
       signOut,
       unlockWithBiometrics,
       setBiometricEnabled,
+      setWorkspace,
     }}>
       {children}
     </AuthContext.Provider>
