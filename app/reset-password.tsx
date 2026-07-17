@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/Button';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 
 function Rule({ met, text }: { met: boolean; text: string }) {
   return (
@@ -82,7 +82,7 @@ export default function ResetPasswordScreen() {
   if (done) {
     return (
       <View style={styles.root}>
-        <LinearGradient colors={['#6366F1', '#7C3AED']} style={styles.hero}>
+        <LinearGradient colors={Gradients.primary} style={styles.hero}>
           <View style={styles.logoMark}>
             <Text style={styles.logoSpark}>✓</Text>
           </View>
@@ -110,7 +110,7 @@ export default function ResetPasswordScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.root}
     >
-      <LinearGradient colors={['#6366F1', '#7C3AED']} style={styles.hero}>
+      <LinearGradient colors={Gradients.primary} style={styles.hero}>
         {/* Show back button only when accessed from More screen (no deep-link tokens) */}
         {!access_token && (
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>

@@ -24,7 +24,7 @@ export async function getProperty(id: string) {
 export async function getPropertyUnits(propertyId: string): Promise<Unit[]> {
   const { data, error } = await supabase
     .from('units')
-    .select('id, property_id, label')
+    .select('id, property_id, workspace_id, label')
     .eq('property_id', propertyId)
     .order('label');
   if (error) throw error;

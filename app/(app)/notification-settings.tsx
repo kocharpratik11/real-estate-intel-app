@@ -3,7 +3,7 @@ import { View, Text, Switch, TouchableOpacity, ScrollView, StyleSheet, ActivityI
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 import { getPreferences, updatePreferences, type UserPreferences } from '@/lib/api/preferences';
 import { hapticSuccess } from '@/lib/haptics';
 
@@ -49,7 +49,7 @@ export default function NotificationSettingsScreen() {
 
   return (
     <View style={styles.root}>
-      <LinearGradient colors={['#6366F1', '#7C3AED']} style={[styles.hero, { paddingTop: insets.top + 12 }]}>
+      <LinearGradient colors={Gradients.primary} style={[styles.hero, { paddingTop: insets.top + 12 }]}>
         <View style={styles.heroTop}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
             <Text style={styles.backBtn}>‹ More</Text>

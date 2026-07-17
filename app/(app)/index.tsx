@@ -14,7 +14,7 @@ import { getCachedInsights, refreshInsights } from '@/lib/api/insights';
 import { AIHeroCard } from '@/components/home/AIHeroCard';
 import { QuickStats } from '@/components/home/QuickStats';
 import { RecentActivity, ActivityItem } from '@/components/home/RecentActivity';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 import type { PortfolioSummary, AppAlert } from '@/types';
 
 type BriefingMode = 'daily' | 'weekly' | 'monthly';
@@ -241,7 +241,7 @@ export default function HomeScreen() {
   return (
     <View style={styles.root}>
       {/* Gradient hero header */}
-      <LinearGradient colors={['#6366F1', '#7C3AED']} style={[styles.hero, { paddingTop: insets.top + 12 }]}>
+      <LinearGradient colors={Gradients.primary} style={[styles.hero, { paddingTop: insets.top + 12 }]}>
         {/* Top row: greeting + workspace + bell */}
         <View style={styles.heroTop}>
           <View style={{ flex: 1 }}>
@@ -286,7 +286,7 @@ export default function HomeScreen() {
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.indigo} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.blue} />}
       >
         {/* AI Hero Card */}
         <AIHeroCard
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom:   16,
   },
-  greeting: { color: Colors.white, fontSize: 20, fontWeight: '700', marginBottom: 6 },
+  greeting: { color: '#FFFFFF', fontSize: 20, fontWeight: '700', marginBottom: 6 },
   workspacePill: {
     backgroundColor:   'rgba(255,255,255,0.18)',
     borderRadius:      13,
@@ -398,11 +398,11 @@ const styles = StyleSheet.create({
     borderColor:       'rgba(255,255,255,0.2)',
   },
   chipActive: {
-    backgroundColor: Colors.white,
-    borderColor:     Colors.white,
+    backgroundColor: '#FFFFFF',
+    borderColor:     '#FFFFFF',
   },
   chipLabel:       { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '500' },
-  chipLabelActive: { color: Colors.indigo, fontWeight: '700' },
+  chipLabelActive: { color: Colors.blue, fontWeight: '700' },
 
   // Content
   scroll: { flex: 1 },
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
     fontWeight:    '700',
     letterSpacing: 0.8,
   },
-  seeAll: { color: Colors.indigo, fontSize: 10 },
+  seeAll: { color: Colors.blue, fontSize: 10 },
 
   // Action queue row
   actionRow: {
@@ -433,11 +433,11 @@ const styles = StyleSheet.create({
     gap:             12,
   },
   actionRowEmergency: {
-    borderColor:     Colors.redBd,
+    borderColor:     Colors.red,
     backgroundColor: Colors.redBg,
   },
   severityDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
   actionTitle: { color: Colors.text, fontSize: 13, fontWeight: '600', marginBottom: 2 },
   actionSub:   { color: Colors.textMuted, fontSize: 10 },
-  actionCTA:   { color: Colors.indigo, fontSize: 11, fontWeight: '600', flexShrink: 0 },
+  actionCTA:   { color: Colors.blue, fontSize: 11, fontWeight: '600', flexShrink: 0 },
 });

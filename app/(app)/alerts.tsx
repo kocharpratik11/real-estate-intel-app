@@ -11,7 +11,7 @@ import { generateAlerts } from '@/lib/api/alerts';
 import { OptimizerTab } from '@/components/intelligence/OptimizerTab';
 import { ScenariosTab } from '@/components/intelligence/ScenariosTab';
 import { RulesTab } from '@/components/intelligence/RulesTab';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 import type { AppAlert } from '@/types';
 
 const SEV_BG:    Record<string, string> = { emergency: Colors.redBg,    warning: Colors.yellowBg, info: Colors.aiCard };
@@ -63,7 +63,7 @@ export default function AlertsScreen() {
   return (
     <View style={[styles.root, { backgroundColor: Colors.indigo }]}>
       {/* Gradient header */}
-      <LinearGradient colors={['#6366F1', '#7C3AED']} style={[styles.header, { paddingTop: insets.top + 12 }]}>
+      <LinearGradient colors={Gradients.primary} style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>Intelligence</Text>
         <Text style={styles.sub}>
           {tab === 'Alerts'

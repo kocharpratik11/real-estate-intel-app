@@ -7,7 +7,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 import { Badge } from '@/components/ui/Badge';
 import { NewLeaseSheet } from '@/components/leases/NewLeaseSheet';
 import type { Lease, RentPayment } from '@/types';
@@ -80,7 +80,7 @@ export default function UnitDetailScreen() {
     <View style={[s.root, { backgroundColor: Colors.indigo }]}>
       {/* Gradient tenant hero */}
       <LinearGradient
-        colors={['#6366F1', '#7C3AED']}
+        colors={Gradients.primary}
         style={[s.hero, { paddingTop: insets.top + 8 }]}
       >
         <TouchableOpacity onPress={() => router.back()} style={s.backWrap}>

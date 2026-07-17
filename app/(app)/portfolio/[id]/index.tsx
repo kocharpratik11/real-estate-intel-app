@@ -12,7 +12,7 @@ import type { PropertyMetrics } from '@/types';
 import { isPropertySetupComplete } from '@/lib/utils/propertySetup';
 import { WebSetupNudge } from '@/components/ui/WebSetupNudge';
 import { getPropertyHealthScore, scoreColor, scoreLabel } from '@/lib/api/healthScore';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 import { Badge } from '@/components/ui/Badge';
 import { LogExpenseSheet } from '@/components/expenses/LogExpenseSheet';
 import { NewTicketSheet } from '@/components/maintenance/NewTicketSheet';
@@ -24,10 +24,11 @@ import { MAINTENANCE_CATEGORIES } from '@/lib/api/maintenance';
 import type { Lease, Expense, MaintenanceEvent } from '@/types';
 import type { HealthScoreResult } from '@/lib/api/healthScore';
 
-type Tab = 'units' | 'rent' | 'expenses' | 'maintenance' | 'docs';
+type Tab = 'units' | 'rent' | 'equity' | 'expenses' | 'maintenance' | 'docs';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'units',       label: 'Units' },
   { key: 'rent',        label: 'Rent' },
+  { key: 'equity',      label: 'Equity' },
   { key: 'expenses',    label: 'Expenses' },
   { key: 'maintenance', label: 'Maintenance' },
   { key: 'docs',        label: 'Docs' },
@@ -200,7 +201,7 @@ export default function PropertyDetailScreen() {
   return (
     <View style={[styles.root, { backgroundColor: Colors.indigo }]}>
       {/* Gradient hero */}
-      <LinearGradient colors={['#6366F1', '#7C3AED']} style={[styles.hero, { paddingTop: insets.top + 4 }]}>
+      <LinearGradient colors={Gradients.primary} style={[styles.hero, { paddingTop: insets.top + 4 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backLabel}>‹ Portfolio</Text>
         </TouchableOpacity>
@@ -351,6 +352,27 @@ export default function PropertyDetailScreen() {
           </View>
         )}
 
+        {/* EQUITY TAB */}
+        {tab === 'equity' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>EQUITY & FINANCING</Text>
+            <TouchableOpacity
+              style={styles.ctaRow}
+              onPress={() => router.push({ pathname: '/(app)/portfolio/[id]/equity', params: { id } })}
+              activeOpacity={0.8}
+            >
+              <View style={styles.ctaIcon}>
+                <Text style={styles.ctaIconText}>📈</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.ctaTitle}>View Equity & Loans</Text>
+                <Text style={styles.ctaSub}>Current value, LTV, and financing structures</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* EXPENSES TAB */}
         {tab === 'expenses' && (
           <View style={styles.section}>
@@ -465,11 +487,20 @@ export default function PropertyDetailScreen() {
         {tab === 'docs' && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>DOCUMENTS</Text>
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>📁</Text>
-              <Text style={styles.emptyTitle}>Manage docs on web</Text>
-              <Text style={styles.emptySub}>Upload leases, inspection reports, and mortgage docs on assetbrain.app for AI-powered analysis.</Text>
-            </View>
+            <TouchableOpacity
+              style={styles.ctaRow}
+              onPress={() => router.push({ pathname: '/(app)/portfolio/[id]/documents', params: { id } })}
+              activeOpacity={0.8}
+            >
+              <View style={styles.ctaIcon}>
+                <Text style={styles.ctaIconText}>📁</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.ctaTitle}>View Documents</Text>
+                <Text style={styles.ctaSub}>Leases, inspection reports & mortgage docs</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
             <WebSetupNudge
               propertyId={property.id}
               title="Upload documents on assetbrain.app"

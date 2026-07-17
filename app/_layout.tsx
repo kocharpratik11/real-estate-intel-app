@@ -105,7 +105,7 @@ function RootLayoutInner() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.bg }}>
-      <StatusBar style="dark" backgroundColor={Colors.bg} />
+      <StatusBar style="light" backgroundColor={Colors.bg} />
       <AuthProvider>
         <RootLayoutInner />
       </AuthProvider>

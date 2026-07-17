@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 
 type Insight = {
   title: string;
@@ -22,7 +22,7 @@ type Props = {
 export function AIHeroCard({ insight, total, current, onDotPress, onDismiss }: Props) {
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#6366F1', '#7C3AED']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientStrip} />
+      <LinearGradient colors={Gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientStrip} />
 
       <View style={styles.inner}>
         <View style={styles.labelPill}>
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     alignSelf:       'flex-start',
   },
   labelText: {
-    color:         Colors.indigo,
+    color:         Colors.blue,
     fontSize:      9,
     fontWeight:    '700',
     letterSpacing: 0.5,
@@ -92,18 +92,18 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   body: {
-    color:      Colors.textMuted,
+    color:      Colors.textSub,
     fontSize:   12,
     lineHeight: 18,
   },
   actions: { flexDirection: 'row', gap: 10, marginTop: 4 },
   btnPrimary: {
-    backgroundColor:   Colors.indigo,
+    backgroundColor:   Colors.blue,
     borderRadius:      10,
     paddingHorizontal: 16,
     paddingVertical:   9,
   },
-  btnPrimaryLabel: { color: Colors.white, fontSize: 13, fontWeight: '600' },
+  btnPrimaryLabel: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
   btnSecondary: {
     backgroundColor:   Colors.aiDark,
     borderRadius:      10,
@@ -120,6 +120,6 @@ const styles = StyleSheet.create({
     borderRadius:    2,
     backgroundColor: Colors.border,
   },
-  dotActive: { width: 20, backgroundColor: Colors.indigo },
+  dotActive: { width: 20, backgroundColor: Colors.blue },
   moreLabel: { color: Colors.textMuted, fontSize: 10, marginLeft: 8 },
 });

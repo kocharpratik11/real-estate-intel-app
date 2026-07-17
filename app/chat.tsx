@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 import { hapticLight } from '@/lib/haptics';
 
 type Message = {
@@ -116,7 +116,7 @@ export default function ChatModal() {
     <View style={[styles.root, { backgroundColor: Colors.indigo }]}>
       {/* Header */}
       <LinearGradient
-        colors={['#6366F1', '#7C3AED']}
+        colors={Gradients.primary}
         style={[styles.header, { paddingTop: insets.top + 12 }]}
       >
         <View style={styles.headerLeft}>

@@ -6,7 +6,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Button } from '@/components/ui/Button';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const API_URL = 'https://assetbrain.app/api/auth/forgot-password';
@@ -69,7 +69,7 @@ export default function ForgotPasswordScreen() {
   if (sent) {
     return (
       <View style={styles.root}>
-        <LinearGradient colors={['#6366F1', '#7C3AED']} style={styles.hero}>
+        <LinearGradient colors={Gradients.primary} style={styles.hero}>
           <View style={styles.logoMark}>
             <Text style={styles.logoSpark}>✉</Text>
           </View>
@@ -121,9 +121,9 @@ export default function ForgotPasswordScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.root}
     >
-      <LinearGradient colors={['#6366F1', '#7C3AED']} style={styles.hero}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backLabel}>‹ Back to sign in</Text>
+      <LinearGradient colors={Gradients.primary} style={styles.hero}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.heroBackBtn}>
+          <Text style={styles.heroBackLabel}>‹ Back to sign in</Text>
         </TouchableOpacity>
         <View style={styles.logoMark}>
           <Text style={styles.logoSpark}>🔒</Text>
@@ -201,8 +201,8 @@ const styles = StyleSheet.create({
     alignItems:        'center',
     gap:               8,
   },
-  backBtn:   { alignSelf: 'flex-start', marginBottom: 8, padding: 4 },
-  backLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 15 },
+  heroBackBtn:   { alignSelf: 'flex-start', marginBottom: 8, padding: 4 },
+  heroBackLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 15 },
   logoMark: {
     width:           64,
     height:          64,
@@ -260,8 +260,8 @@ const styles = StyleSheet.create({
     marginTop:       12,
     gap:             6,
   },
-  notFoundText: { color: '#92400E', fontSize: 13 },
-  notFoundLink: { color: '#B45309', fontSize: 13, fontWeight: '700' },
+  notFoundText: { color: Colors.textSub, fontSize: 13 },
+  notFoundLink: { color: Colors.yellow, fontSize: 13, fontWeight: '700' },
   error: { color: Colors.red, fontSize: 12, marginTop: 12 },
   btn:   { marginTop: 24 },
 

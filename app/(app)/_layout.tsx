@@ -2,13 +2,14 @@ import { useEffect, useRef, useCallback } from 'react';
 import { Tabs, router } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { registerForPushNotifications } from '@/lib/notifications';
 
-function TabIcon({ label, emoji, focused }: { label: string; emoji: string; focused: boolean }) {
+function TabIcon({ label, icon, focused }: { label: string; icon: keyof typeof Ionicons.glyphMap; focused: boolean }) {
   return (
     <View style={styles.tabIcon}>
-      <Text style={[styles.emoji, { opacity: focused ? 1 : 0.5 }]}>{emoji}</Text>
+      <Ionicons name={icon} size={22} color={focused ? Colors.blue : Colors.textMuted} />
       <Text style={[styles.tabLabel, { color: focused ? Colors.blue : Colors.textMuted }]}>
         {label}
       </Text>
@@ -72,25 +73,25 @@ export default function AppLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            tabBarIcon: ({ focused }) => <TabIcon label="Home"      emoji="⌂"  focused={focused} />,
+            tabBarIcon: ({ focused }) => <TabIcon label="Home"      icon="home"          focused={focused} />,
           }}
         />
         <Tabs.Screen
           name="portfolio"
           options={{
-            tabBarIcon: ({ focused }) => <TabIcon label="Portfolio" emoji="⊞"  focused={focused} />,
+            tabBarIcon: ({ focused }) => <TabIcon label="Portfolio" icon="business"      focused={focused} />,
           }}
         />
         <Tabs.Screen
           name="alerts"
           options={{
-            tabBarIcon: ({ focused }) => <TabIcon label="Alerts"    emoji="🔔" focused={focused} />,
+            tabBarIcon: ({ focused }) => <TabIcon label="Alerts"    icon="notifications" focused={focused} />,
           }}
         />
         <Tabs.Screen
           name="more"
           options={{
-            tabBarIcon: ({ focused }) => <TabIcon label="More"      emoji="☰"  focused={focused} />,
+            tabBarIcon: ({ focused }) => <TabIcon label="More"      icon="menu"          focused={focused} />,
           }}
         />
       </Tabs>
@@ -117,7 +118,7 @@ const styles = StyleSheet.create({
     shadowRadius:    10,
     elevation:       8,
   },
-  fabIcon: { color: Colors.white, fontSize: 20, fontWeight: '700' },
+  fabIcon: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
   tabBar: {
     backgroundColor: Colors.card,
     borderTopColor:  Colors.border,
@@ -134,9 +135,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap:        2,
     marginTop:  8,
-  },
-  emoji: {
-    fontSize: 20,
   },
   tabLabel: {
     fontSize:   10,

@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 
 export default function LockedScreen() {
   const insets = useSafeAreaInsets();
@@ -44,7 +44,7 @@ export default function LockedScreen() {
   return (
     <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <LinearGradient
-        colors={['#6366F1', '#7C3AED']}
+        colors={Gradients.primary}
         style={styles.hero}
       >
         <View style={styles.logoMark}>
@@ -56,7 +56,7 @@ export default function LockedScreen() {
 
       <View style={styles.content}>
         {loading ? (
-          <ActivityIndicator size="large" color={Colors.indigo} />
+          <ActivityIndicator size="large" color={Colors.blue} />
         ) : (
           <>
             <TouchableOpacity
@@ -105,8 +105,8 @@ const styles = StyleSheet.create({
     justifyContent:  'center',
     marginBottom:    8,
   },
-  logoSpark: { color: Colors.white, fontSize: 32, fontWeight: '700' },
-  appName:   { color: Colors.white, fontSize: 26, fontWeight: '700' },
+  logoSpark: { color: '#FFFFFF', fontSize: 32, fontWeight: '700' },
+  appName:   { color: '#FFFFFF', fontSize: 26, fontWeight: '700' },
   tagline:   { color: 'rgba(255,255,255,0.7)', fontSize: 14 },
 
   content: {
@@ -120,15 +120,15 @@ const styles = StyleSheet.create({
     flexDirection:   'row',
     alignItems:      'center',
     gap:             12,
-    backgroundColor: Colors.indigo,
+    backgroundColor: Colors.blue,
     borderRadius:    14,
     paddingVertical: 16,
     paddingHorizontal: 28,
     width:           '100%',
     justifyContent:  'center',
   },
-  biometricIcon:  { fontSize: 22, color: Colors.white },
-  biometricLabel: { color: Colors.white, fontSize: 16, fontWeight: '600' },
+  biometricIcon:  { fontSize: 22, color: '#FFFFFF' },
+  biometricLabel: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
 
   error: {
     color:     Colors.red,

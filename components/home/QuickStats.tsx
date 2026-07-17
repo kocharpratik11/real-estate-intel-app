@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.aiCard,
     borderRadius:    14,
     borderWidth:     1,
-    borderColor:     Colors.aiBorder,
+    borderColor:     Colors.border,
     marginHorizontal: 16,
     paddingVertical:  12,
     marginTop:       10,
