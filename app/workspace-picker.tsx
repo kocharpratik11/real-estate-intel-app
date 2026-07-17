@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { useWorkspaces } from '@/hooks/useWorkspace';
 import { useAuth } from '@/contexts/AuthContext';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 
 const INITIALS = (name: string) =>
   name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -40,7 +40,7 @@ export default function WorkspacePickerScreen() {
     <View style={[styles.root, { backgroundColor: Colors.indigo }]}>
       {/* Gradient hero */}
       <LinearGradient
-        colors={['#6366F1', '#7C3AED']}
+        colors={Gradients.primary}
         style={[styles.hero, { paddingTop: insets.top + 12 }]}
       >
         <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>

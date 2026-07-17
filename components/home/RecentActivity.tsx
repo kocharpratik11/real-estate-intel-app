@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Colors } from '@/constants/theme';
+import { Colors } from '@/constants/colors';
 
 export type ActivityItem = {
   id: string;
@@ -39,7 +39,7 @@ export function RecentActivity({ items, onSeeAll }: Props) {
             <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.sub}>{item.subtitle}</Text>
           </View>
-          <Text style={[styles.time, { color: item.timeColor ?? Colors.textTertiary }]}>
+          <Text style={[styles.time, { color: item.timeColor ?? Colors.textMuted }]}>
             {item.time}
           </Text>
           <Text style={styles.chevron}>›</Text>
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
     marginBottom:   4,
   },
   sectionLabel: {
-    color:      Colors.textTertiary,
+    color:      Colors.textMuted,
     fontSize:   9,
     fontWeight: '700',
     letterSpacing: 0.8,
@@ -74,10 +74,10 @@ const styles = StyleSheet.create({
   row: {
     flexDirection:   'row',
     alignItems:      'center',
-    backgroundColor: Colors.glassBg,
+    backgroundColor: Colors.card,
     borderRadius:    12,
     borderWidth:     1,
-    borderColor:     Colors.glassBorder,
+    borderColor:     Colors.border,
     padding:         14,
     gap:             10,
   },
@@ -90,19 +90,19 @@ const styles = StyleSheet.create({
     gap:  2,
   },
   title: {
-    color:      Colors.textPrimary,
+    color:      Colors.text,
     fontSize:   13,
     fontWeight: '600',
   },
   sub: {
-    color:    Colors.textTertiary,
+    color:    Colors.textMuted,
     fontSize: 10,
   },
   time: {
     fontSize: 10,
   },
   chevron: {
-    color:    Colors.textTertiary,
+    color:    Colors.textMuted,
     fontSize: 16,
   },
 });

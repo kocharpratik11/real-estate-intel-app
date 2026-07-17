@@ -12,7 +12,7 @@ import type { PropertyMetrics } from '@/types';
 import { isPropertySetupComplete } from '@/lib/utils/propertySetup';
 import { WebSetupNudge } from '@/components/ui/WebSetupNudge';
 import { getPropertyHealthScore, scoreColor, scoreLabel } from '@/lib/api/healthScore';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 import { Badge } from '@/components/ui/Badge';
 import { LogExpenseSheet } from '@/components/expenses/LogExpenseSheet';
 import { NewTicketSheet } from '@/components/maintenance/NewTicketSheet';
@@ -201,7 +201,7 @@ export default function PropertyDetailScreen() {
   return (
     <View style={[styles.root, { backgroundColor: Colors.indigo }]}>
       {/* Gradient hero */}
-      <LinearGradient colors={['#6366F1', '#7C3AED']} style={[styles.hero, { paddingTop: insets.top + 4 }]}>
+      <LinearGradient colors={Gradients.primary} style={[styles.hero, { paddingTop: insets.top + 4 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backLabel}>‹ Portfolio</Text>
         </TouchableOpacity>

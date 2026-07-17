@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getRentPayments, buildLedger } from '@/lib/api/rent';
 import { LedgerRow } from '@/components/rent/LedgerRow';
 import { RecordPaymentSheet } from '@/components/rent/RecordPaymentSheet';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 import type { LedgerEvent, RentPayment, PaymentStatus } from '@/types';
 
 type Filter = 'all' | 'paid' | 'overdue' | 'partial' | 'vacant';
@@ -86,7 +86,7 @@ export default function RentLedgerScreen() {
     <View style={[styles.root, { backgroundColor: Colors.indigo }]}>
       {/* Gradient header */}
       <LinearGradient
-        colors={['#6366F1', '#7C3AED']}
+        colors={Gradients.primary}
         style={[styles.hero, { paddingTop: insets.top + 8 }]}
       >
         <TouchableOpacity onPress={() => router.back()}>

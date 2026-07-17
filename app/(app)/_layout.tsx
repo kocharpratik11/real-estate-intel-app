@@ -3,14 +3,14 @@ import { Tabs, router } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/theme';
+import { Colors } from '@/constants/colors';
 import { registerForPushNotifications } from '@/lib/notifications';
 
 function TabIcon({ label, icon, focused }: { label: string; icon: keyof typeof Ionicons.glyphMap; focused: boolean }) {
   return (
     <View style={styles.tabIcon}>
-      <Ionicons name={icon} size={22} color={focused ? Colors.blue : Colors.textTertiary} />
-      <Text style={[styles.tabLabel, { color: focused ? Colors.blue : Colors.textTertiary }]}>
+      <Ionicons name={icon} size={22} color={focused ? Colors.blue : Colors.textMuted} />
+      <Text style={[styles.tabLabel, { color: focused ? Colors.blue : Colors.textMuted }]}>
         {label}
       </Text>
     </View>
@@ -120,8 +120,8 @@ const styles = StyleSheet.create({
   },
   fabIcon: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
   tabBar: {
-    backgroundColor: Colors.bgSecondary,
-    borderTopColor:  Colors.glassBorder,
+    backgroundColor: Colors.card,
+    borderTopColor:  Colors.border,
     borderTopWidth:  1,
     height:          80,
     paddingBottom:   16,

@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
-import { Colors, Gradients } from '@/constants/theme';
+import { Colors, Gradients } from '@/constants/colors';
 
 export default function LockedScreen() {
   const insets = useSafeAreaInsets();
@@ -87,7 +87,7 @@ export default function LockedScreen() {
 const styles = StyleSheet.create({
   root: {
     flex:            1,
-    backgroundColor: Colors.bgPrimary,
+    backgroundColor: Colors.bg,
   },
   hero: {
     flex:              1,
@@ -131,11 +131,11 @@ const styles = StyleSheet.create({
   biometricLabel: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
 
   error: {
-    color:     Colors.error,
+    color:     Colors.red,
     fontSize:  12,
     textAlign: 'center',
   },
 
   passwordBtn:   { paddingVertical: 12 },
-  passwordLabel: { color: Colors.textTertiary, fontSize: 14 },
+  passwordLabel: { color: Colors.textMuted, fontSize: 14 },
 });

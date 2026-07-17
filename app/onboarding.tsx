@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 import { Button } from '@/components/ui/Button';
 import { hapticSuccess } from '@/lib/haptics';
 
@@ -80,7 +80,7 @@ export default function OnboardingScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.root}
       >
-        <LinearGradient colors={['#6366F1', '#7C3AED']} style={[styles.hero, { paddingTop: insets.top + 24 }]}>
+        <LinearGradient colors={Gradients.primary} style={[styles.hero, { paddingTop: insets.top + 24 }]}>
           <View style={styles.logoMark}>
             <Text style={styles.logoSpark}>✦</Text>
           </View>
@@ -135,7 +135,7 @@ export default function OnboardingScreen() {
   return (
     <View style={[styles.root, { justifyContent: 'center', paddingHorizontal: 24 }]}>
       <LinearGradient
-        colors={['#6366F1', '#7C3AED']}
+        colors={Gradients.primary}
         style={[styles.successHero, { paddingTop: insets.top + 40 }]}
       >
         <Text style={styles.successEmoji}>🎉</Text>

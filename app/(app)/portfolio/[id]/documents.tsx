@@ -6,7 +6,7 @@ import { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '@/lib/supabase';
-import { Colors, Spacing, FontSize, FontWeight } from '@/constants/theme';
+import { Colors } from '@/constants/colors';
 
 const DOCUMENTS_BUCKET = 'documents';
 
@@ -63,7 +63,7 @@ export default function DocumentsScreen() {
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="document-outline" size={48} color={Colors.textTertiary} />
+            <Ionicons name="document-outline" size={48} color={Colors.textMuted} />
             <Text style={styles.emptyText}>No documents yet</Text>
             <Text style={styles.emptySubtext}>
               Upload documents from the web app
@@ -91,7 +91,7 @@ export default function DocumentsScreen() {
                 {item.document_date ? ` · ${new Date(item.document_date).toLocaleDateString()}` : ''}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+            <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
           </TouchableOpacity>
         )}
       />
@@ -100,40 +100,40 @@ export default function DocumentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
-  list: { padding: Spacing.base },
+  container: { flex: 1, backgroundColor: Colors.bg },
+  list: { padding: 16 },
   empty: { alignItems: 'center', paddingTop: 80, gap: 12 },
   emptyText: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
   },
-  emptySubtext: { fontSize: FontSize.sm, color: Colors.textTertiary },
+  emptySubtext: { fontSize: 14, color: Colors.textMuted },
   docRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.bgSecondary,
+    backgroundColor: Colors.card,
     borderRadius: 12,
-    padding: Spacing.base,
+    padding: 16,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
+    borderColor: Colors.border,
     gap: 12,
   },
   docIcon: {
     width: 44,
     height: 44,
     borderRadius: 10,
-    backgroundColor: Colors.infoBg,
+    backgroundColor: Colors.aiCard,
     alignItems: 'center',
     justifyContent: 'center',
   },
   docInfo: { flex: 1 },
   docName: {
-    fontSize: FontSize.base,
-    fontWeight: FontWeight.medium,
-    color: Colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.text,
     marginBottom: 4,
   },
-  docMeta: { fontSize: FontSize.xs, color: Colors.textTertiary, textTransform: 'capitalize' },
+  docMeta: { fontSize: 12, color: Colors.textMuted, textTransform: 'capitalize' },
 });

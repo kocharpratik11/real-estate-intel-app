@@ -9,7 +9,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { listProperties, getPortfolioSummary } from '@/lib/api/properties';
 import { PropertyRow, PropertyRowData } from '@/components/portfolio/PropertyRow';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 import { hapticLight } from '@/lib/haptics';
 import { openWebApp } from '@/lib/utils/propertySetup';
 
@@ -158,7 +158,7 @@ export default function PortfolioScreen() {
   return (
     <View style={[styles.root, { backgroundColor: Colors.indigo }]}>
       {/* Gradient header */}
-      <LinearGradient colors={['#6366F1', '#7C3AED']} style={[styles.header, { paddingTop: insets.top + 12 }]}>
+      <LinearGradient colors={Gradients.primary} style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>Portfolio</Text>
         <Text style={styles.sub}>{properties.length} properties  •  {properties.reduce((s, p) => s + p.unit_count, 0)} units</Text>
       </LinearGradient>

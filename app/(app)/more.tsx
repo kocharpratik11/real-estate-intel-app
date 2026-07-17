@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
-import { Colors, Gradients } from '@/constants/theme';
+import { Colors, Gradients } from '@/constants/colors';
 import { useAuth } from '@/contexts/AuthContext';
 
 type RowProps = { icon: keyof typeof Ionicons.glyphMap; label: string; sub?: string; onPress: () => void; danger?: boolean };
@@ -13,12 +13,12 @@ type RowProps = { icon: keyof typeof Ionicons.glyphMap; label: string; sub?: str
 function Row({ icon, label, sub, onPress, danger }: RowProps) {
   return (
     <TouchableOpacity onPress={onPress} style={styles.row} activeOpacity={0.7}>
-      <Ionicons name={icon} size={18} color={danger ? Colors.error : Colors.blue} style={styles.rowIcon} />
+      <Ionicons name={icon} size={18} color={danger ? Colors.red : Colors.blue} style={styles.rowIcon} />
       <View style={styles.rowText}>
-        <Text style={[styles.rowLabel, danger && { color: Colors.error }]}>{label}</Text>
+        <Text style={[styles.rowLabel, danger && { color: Colors.red }]}>{label}</Text>
         {sub && <Text style={styles.rowSub}>{sub}</Text>}
       </View>
-      {!danger && <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />}
+      {!danger && <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />}
     </TouchableOpacity>
   );
 }
@@ -138,7 +138,7 @@ export default function MoreScreen() {
                 <Switch
                   value={biometricEnabled}
                   onValueChange={handleBiometricToggle}
-                  trackColor={{ false: Colors.bgTertiary, true: Colors.blue }}
+                  trackColor={{ false: Colors.aiDark, true: Colors.blue }}
                   thumbColor="#FFFFFF"
                 />
               </TouchableOpacity>
@@ -155,7 +155,7 @@ export default function MoreScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.bgPrimary },
+  root: { flex: 1, backgroundColor: Colors.bg },
   hero: {
     alignItems:        'center',
     paddingBottom:     28,
@@ -192,20 +192,20 @@ const styles = StyleSheet.create({
     marginTop:         8,
   },
   editLabel: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
-  content:   { backgroundColor: Colors.bgPrimary, paddingTop: 20 },
+  content:   { backgroundColor: Colors.bg, paddingTop: 20 },
   section:   { marginHorizontal: 16, marginBottom: 20 },
   sectionTitle: {
-    color:         Colors.textTertiary,
+    color:         Colors.textMuted,
     fontSize:      9,
     fontWeight:    '700',
     letterSpacing: 0.8,
     marginBottom:  8,
   },
   sectionCard: {
-    backgroundColor: Colors.bgSecondary,
+    backgroundColor: Colors.card,
     borderRadius:    12,
     borderWidth:     1,
-    borderColor:     Colors.glassBorder,
+    borderColor:     Colors.border,
     overflow:        'hidden',
   },
   row: {
@@ -214,12 +214,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical:   14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.glassBorder,
+    borderBottomColor: Colors.border,
     gap:               12,
   },
   rowIcon:    { width: 22 },
   rowText:    { flex: 1 },
-  rowLabel:   { color: Colors.textPrimary, fontSize: 14 },
-  rowSub:     { color: Colors.textTertiary, fontSize: 11, marginTop: 2 },
-  version:    { color: Colors.textTertiary, fontSize: 11, textAlign: 'center', marginTop: 8 },
+  rowLabel:   { color: Colors.text, fontSize: 14 },
+  rowSub:     { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
+  version:    { color: Colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: 8 },
 });

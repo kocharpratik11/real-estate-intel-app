@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/Button';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -62,7 +62,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.root}
     >
-      <LinearGradient colors={['#6366F1', '#7C3AED']} style={styles.hero}>
+      <LinearGradient colors={Gradients.primary} style={styles.hero}>
         <View style={styles.logoMark}>
           <Text style={styles.logoSpark}>✦</Text>
         </View>

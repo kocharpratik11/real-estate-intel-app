@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Colors, Spacing, FontSize, FontWeight } from '@/constants/theme';
+import { Colors } from '@/constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type Loan = {
@@ -58,9 +58,9 @@ export default function EquityScreen() {
         {/* Summary Cards */}
         <View style={styles.grid}>
           <SummaryCard label="Current Value" value={formatCurrency(currentValue)} color={Colors.blue} />
-          <SummaryCard label="Total Debt" value={formatCurrency(totalDebt)} color={Colors.error} />
-          <SummaryCard label="Equity" value={formatCurrency(equity)} color={Colors.success} />
-          <SummaryCard label="LTV" value={`${ltv.toFixed(1)}%`} color={Colors.warning} />
+          <SummaryCard label="Total Debt" value={formatCurrency(totalDebt)} color={Colors.red} />
+          <SummaryCard label="Equity" value={formatCurrency(equity)} color={Colors.green} />
+          <SummaryCard label="LTV" value={`${ltv.toFixed(1)}%`} color={Colors.yellow} />
         </View>
 
         {/* Equity Bar */}
@@ -86,11 +86,11 @@ export default function EquityScreen() {
           </View>
           <View style={styles.barLegend}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: Colors.success }]} />
+              <View style={[styles.legendDot, { backgroundColor: Colors.green }]} />
               <Text style={styles.legendText}>Equity ({formatCurrency(equity)})</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: Colors.error }]} />
+              <View style={[styles.legendDot, { backgroundColor: Colors.red }]} />
               <Text style={styles.legendText}>Debt ({formatCurrency(totalDebt)})</Text>
             </View>
           </View>
@@ -155,56 +155,56 @@ function formatCurrency(amount: number): string {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgPrimary },
+  container: { flex: 1, backgroundColor: Colors.bg },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: Spacing.base,
+    padding: 16,
     gap: 12,
   },
   summaryCard: {
     width: '47%',
-    backgroundColor: Colors.bgSecondary,
+    backgroundColor: Colors.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    padding: Spacing.base,
+    borderColor: Colors.border,
+    padding: 16,
   },
   summaryLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.textTertiary,
+    fontSize: 12,
+    color: Colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
   },
   summaryValue: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
+    fontSize: 20,
+    fontWeight: '700',
   },
   section: {
-    paddingHorizontal: Spacing.base,
-    marginBottom: Spacing.xl,
+    paddingHorizontal: 16,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: FontSize.base,
-    fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.base,
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 16,
   },
   barContainer: {
     flexDirection: 'row',
     height: 48,
     borderRadius: 12,
     overflow: 'hidden',
-    marginBottom: Spacing.md,
+    marginBottom: 12,
   },
   barSegment: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   barLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.bold,
+    fontSize: 12,
+    fontWeight: '700',
     color: 'white',
   },
   barLegend: {
@@ -222,15 +222,15 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   legendText: {
-    fontSize: FontSize.sm,
-    color: Colors.textSecondary,
+    fontSize: 14,
+    color: Colors.textSub,
   },
   card: {
-    backgroundColor: Colors.bgSecondary,
+    backgroundColor: Colors.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    padding: Spacing.base,
+    borderColor: Colors.border,
+    padding: 16,
     marginBottom: 12,
   },
   loanHeader: {
@@ -240,20 +240,20 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   loanName: {
-    fontSize: FontSize.base,
-    fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
     textTransform: 'capitalize',
   },
   loanBalance: {
-    fontSize: FontSize.base,
-    fontWeight: FontWeight.bold,
+    fontSize: 16,
+    fontWeight: '700',
     color: Colors.blue,
   },
   loanLender: {
-    fontSize: FontSize.sm,
-    color: Colors.textTertiary,
-    marginBottom: Spacing.md,
+    fontSize: 14,
+    color: Colors.textMuted,
+    marginBottom: 12,
   },
   loanDetails: {
     flexDirection: 'row',
@@ -261,18 +261,18 @@ const styles = StyleSheet.create({
   },
   loanDetailItem: { alignItems: 'center' },
   loanDetailLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.textTertiary,
+    fontSize: 12,
+    color: Colors.textMuted,
     marginBottom: 4,
   },
   loanDetailValue: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
   },
   emptyText: {
-    fontSize: FontSize.sm,
-    color: Colors.textTertiary,
+    fontSize: 14,
+    color: Colors.textMuted,
     textAlign: 'center',
   },
 });

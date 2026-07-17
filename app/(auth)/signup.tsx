@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/Button';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -107,7 +107,7 @@ export default function SignupScreen() {
   if (sent) {
     return (
       <View style={styles.root}>
-        <LinearGradient colors={['#6366F1', '#7C3AED']} style={styles.hero}>
+        <LinearGradient colors={Gradients.primary} style={styles.hero}>
           <View style={styles.logoMark}>
             <Text style={styles.logoSpark}>✉</Text>
           </View>
@@ -167,7 +167,7 @@ export default function SignupScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.root}
     >
-      <LinearGradient colors={['#6366F1', '#7C3AED']} style={styles.hero}>
+      <LinearGradient colors={Gradients.primary} style={styles.hero}>
         <View style={styles.logoMark}>
           <Text style={styles.logoSpark}>✦</Text>
         </View>
@@ -418,8 +418,8 @@ const styles = StyleSheet.create({
     marginTop:       12,
     gap:             6,
   },
-  existsText: { color: '#92400E', fontSize: 13 },
-  existsLink: { color: '#B45309', fontSize: 13, fontWeight: '700' },
+  existsText: { color: Colors.textSub, fontSize: 13 },
+  existsLink: { color: Colors.yellow, fontSize: 13, fontWeight: '700' },
   error: { color: Colors.red, fontSize: 12, marginTop: 12 },
   btn:   { marginTop: 24 },
 

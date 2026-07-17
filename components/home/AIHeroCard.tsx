@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Gradients } from '@/constants/theme';
+import { Colors, Gradients } from '@/constants/colors';
 
 type Insight = {
   title: string;
@@ -60,10 +60,10 @@ export function AIHeroCard({ insight, total, current, onDotPress, onDismiss }: P
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.glassBg,
+    backgroundColor: Colors.aiCard,
     borderRadius:    16,
     borderWidth:     1.5,
-    borderColor:     Colors.glassBorderHover,
+    borderColor:     Colors.aiBorder,
     overflow:        'hidden',
     marginHorizontal: 16,
     marginTop:       8,
@@ -71,10 +71,10 @@ const styles = StyleSheet.create({
   gradientStrip: { height: 4 },
   inner: { padding: 16, gap: 10 },
   labelPill: {
-    backgroundColor: Colors.bgTertiary,
+    backgroundColor: Colors.aiDark,
     borderRadius:    11,
     borderWidth:     1,
-    borderColor:     Colors.glassBorderHover,
+    borderColor:     Colors.aiBorder,
     paddingHorizontal: 10,
     paddingVertical:   4,
     alignSelf:       'flex-start',
@@ -86,13 +86,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   headline: {
-    color:      Colors.textPrimary,
+    color:      Colors.text,
     fontSize:   18,
     fontWeight: '700',
     lineHeight: 24,
   },
   body: {
-    color:      Colors.textSecondary,
+    color:      Colors.textSub,
     fontSize:   12,
     lineHeight: 18,
   },
@@ -105,21 +105,21 @@ const styles = StyleSheet.create({
   },
   btnPrimaryLabel: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
   btnSecondary: {
-    backgroundColor:   Colors.bgTertiary,
+    backgroundColor:   Colors.aiDark,
     borderRadius:      10,
     borderWidth:       1,
-    borderColor:       Colors.glassBorder,
+    borderColor:       Colors.border,
     paddingHorizontal: 16,
     paddingVertical:   9,
   },
-  btnSecondaryLabel: { color: Colors.textSecondary, fontSize: 13 },
+  btnSecondaryLabel: { color: Colors.textSub, fontSize: 13 },
   dots: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   dot: {
     width:           6,
     height:          3,
     borderRadius:    2,
-    backgroundColor: Colors.glassBorder,
+    backgroundColor: Colors.border,
   },
   dotActive: { width: 20, backgroundColor: Colors.blue },
-  moreLabel: { color: Colors.textTertiary, fontSize: 10, marginLeft: 8 },
+  moreLabel: { color: Colors.textMuted, fontSize: 10, marginLeft: 8 },
 });

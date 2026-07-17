@@ -14,7 +14,7 @@ import { getCachedInsights, refreshInsights } from '@/lib/api/insights';
 import { AIHeroCard } from '@/components/home/AIHeroCard';
 import { QuickStats } from '@/components/home/QuickStats';
 import { RecentActivity, ActivityItem } from '@/components/home/RecentActivity';
-import { Colors, Gradients } from '@/constants/theme';
+import { Colors, Gradients } from '@/constants/colors';
 import type { PortfolioSummary, AppAlert } from '@/types';
 
 type BriefingMode = 'daily' | 'weekly' | 'monthly';
@@ -197,7 +197,7 @@ export default function HomeScreen() {
           subtitle:  `${r.units?.label ?? 'Unit'}  •  ${r.properties?.name ?? ''}  •  $${r.amount_paid?.toLocaleString()}`,
           time:      r.paid_date ? new Date(r.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '',
           rawDate:   r.paid_date ? (r.paid_date as string).slice(0, 10) : '',
-          timeColor: Colors.success,
+          timeColor: Colors.green,
           onPress:   () => {},
         }))
       );
@@ -325,7 +325,7 @@ export default function HomeScreen() {
                 activeOpacity={0.8}
               >
                 <View style={[styles.severityDot, {
-                  backgroundColor: alert.severity === 'emergency' ? Colors.error : Colors.warning,
+                  backgroundColor: alert.severity === 'emergency' ? Colors.red : Colors.yellow,
                 }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.actionTitle}>{alert.title}</Text>
@@ -349,7 +349,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: Colors.bgPrimary },
+  root:   { flex: 1, backgroundColor: Colors.bg },
 
   // Hero
   hero: {
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     width:           8,
     height:          8,
     borderRadius:    4,
-    backgroundColor: Colors.error,
+    backgroundColor: Colors.red,
     borderWidth:     1.5,
     borderColor:     Colors.purple,
   },
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
     marginBottom:   4,
   },
   sectionLabel: {
-    color:         Colors.textTertiary,
+    color:         Colors.textMuted,
     fontSize:      9,
     fontWeight:    '700',
     letterSpacing: 0.8,
@@ -425,19 +425,19 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection:   'row',
     alignItems:      'center',
-    backgroundColor: Colors.glassBg,
+    backgroundColor: Colors.card,
     borderRadius:    12,
     borderWidth:     1,
-    borderColor:     Colors.glassBorder,
+    borderColor:     Colors.border,
     padding:         14,
     gap:             12,
   },
   actionRowEmergency: {
-    borderColor:     Colors.error,
-    backgroundColor: Colors.errorBg,
+    borderColor:     Colors.red,
+    backgroundColor: Colors.redBg,
   },
   severityDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
-  actionTitle: { color: Colors.textPrimary, fontSize: 13, fontWeight: '600', marginBottom: 2 },
-  actionSub:   { color: Colors.textTertiary, fontSize: 10 },
+  actionTitle: { color: Colors.text, fontSize: 13, fontWeight: '600', marginBottom: 2 },
+  actionSub:   { color: Colors.textMuted, fontSize: 10 },
   actionCTA:   { color: Colors.blue, fontSize: 11, fontWeight: '600', flexShrink: 0 },
 });

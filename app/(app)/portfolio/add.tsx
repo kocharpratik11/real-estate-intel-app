@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { createProperty, PROPERTY_TYPES } from '@/lib/api/properties_write';
 import { hapticSuccess, hapticError, hapticLight } from '@/lib/haptics';
 import { openWebApp } from '@/lib/utils/propertySetup';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 import { Button } from '@/components/ui/Button';
 import type { Property } from '@/types';
 
@@ -72,7 +72,7 @@ export default function AddPropertyScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: Colors.indigo }]}>
-      <LinearGradient colors={['#6366F1', '#7C3AED']} style={[styles.hero, { paddingTop: insets.top + 8 }]}>
+      <LinearGradient colors={Gradients.primary} style={[styles.hero, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backLabel}>✕</Text>
         </TouchableOpacity>

@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "rei",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.assetbrain.app",
@@ -19,7 +19,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#F7F8FC"
+        "backgroundColor": "#0F172A"
       },
       "package": "com.assetbrain.app",
       "versionCode": 1,
@@ -41,13 +41,13 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#6366F1"
+          "color": "#3B82F6"
         }
       ],
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#F7F8FC",
+          "backgroundColor": "#0F172A",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 120
         }
