@@ -111,9 +111,12 @@ export default function PortfolioScreen() {
     }
 
     const rows: PropertyRowData[] = props.map(p => {
-      const r           = rentByProp.get(p.id) ?? { due: 0, paid: 0, count: 1, paidCount: 0 };
-      const pct         = r.count > 0 ? r.paidCount / r.count : 0;
-      const cf          = r.paid;
+      const r           = rentByProp.get(p.id) ?? { due: 0, paid: 0, count: 0, paidCount: 0 };
+      // No rent charges due this month (vacant / lease not yet started) reads as fully healthy, not 0%.
+      const pct         = r.count > 0 ? r.paidCount / r.count : 1;
+      // Net cash flow (NOI - debt service), matching the same formula the property detail
+      // screen gets from get_property_metrics_v2 — not gross rent collected.
+      const cf          = (p.annual_noi ?? 0) / 12 - (p.monthly_debt_service ?? 0);
       const h           = toHealth(pct * 100, cf);
       const totalUnits  = totalUnitsByProp.get(p.id) ?? p.unit_count;
       const occupied    = occupiedByProp.get(p.id) ?? 0;
