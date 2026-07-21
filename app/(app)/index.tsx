@@ -9,46 +9,29 @@ import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { getPortfolioSummary } from '@/lib/api/properties';
 import { generateAlerts } from '@/lib/api/alerts';
-import { getPreferences, updatePreferences } from '@/lib/api/preferences';
 import { getCachedInsights, refreshInsights } from '@/lib/api/insights';
-import { AIHeroCard } from '@/components/home/AIHeroCard';
+import { AIHeroCard, Insight } from '@/components/home/AIHeroCard';
 import { QuickStats } from '@/components/home/QuickStats';
 import { RecentActivity, ActivityItem } from '@/components/home/RecentActivity';
 import { Colors, Gradients } from '@/constants/colors';
 import type { PortfolioSummary, AppAlert } from '@/types';
 
-type BriefingMode = 'daily' | 'weekly' | 'monthly';
-type Insight = {
-  title: string;
-  body: string;
-  primaryAction: string;
-  secondaryAction?: string;
-  onPrimary: () => void;
-  onSecondary?: () => void;
-};
+const MAX_BRIEFING_CARDS = 10;
 
-const BRIEFING_LABELS: Record<BriefingMode, string> = {
-  daily:   "Today's Briefing",
-  weekly:  'This Week',
-  monthly: 'Monthly Summary',
-};
+// Dismissed briefing card ids for this app session only (module-scoped so it
+// survives tab re-focus / pull-to-refresh, resets on a full app restart).
+const dismissedInsightIds = new Set<string>();
 
-function greetingFor(name: string, mode: BriefingMode): string {
-  if (mode === 'weekly')  return `This week, ${name}`;
-  if (mode === 'monthly') return `Monthly overview`;
+function greetingFor(name: string): string {
   const hour = new Date().getHours();
   const salutation = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   return `${salutation}, ${name}`;
 }
 
-function makeClaudeBriefingInsight(text: string, mode: BriefingMode): Insight {
-  const titles: Record<BriefingMode, string> = {
-    daily:   "Today's Briefing",
-    weekly:  'Weekly Summary',
-    monthly: 'Monthly Overview',
-  };
+function makeClaudeBriefingInsight(text: string): Insight {
   return {
-    title:         titles[mode],
+    id:            'claude-briefing',
+    title:         "Today's Briefing",
     body:          text,
     primaryAction: 'View Portfolio',
     onPrimary:     () => router.push('/(app)/portfolio'),
@@ -58,6 +41,7 @@ function makeClaudeBriefingInsight(text: string, mode: BriefingMode): Insight {
 function makeSummaryInsight(summary: PortfolioSummary | null): Insight {
   if (!summary || summary.total_properties === 0) {
     return {
+      id:            'summary-fallback',
       title:         'Welcome to Asset Brain',
       body:          'Add your first property to start tracking your portfolio performance.',
       primaryAction: 'Add Property',
@@ -66,11 +50,39 @@ function makeSummaryInsight(summary: PortfolioSummary | null): Insight {
   }
   const pct = Math.round(summary.collection_rate * 100);
   return {
+    id:            'summary-fallback',
     title:         pct >= 90 ? 'Portfolio running smoothly' : `${pct}% rent collected this month`,
     body:          `${summary.total_properties} ${summary.total_properties === 1 ? 'property' : 'properties'}  •  $${summary.monthly_collected.toLocaleString()} collected${summary.vacancies > 0 ? `  •  ${summary.vacancies} vacant` : ''}`,
     primaryAction: 'View Portfolio',
     onPrimary:     () => router.push('/(app)/portfolio'),
   };
+}
+
+function alertToInsight(a: AppAlert): Insight {
+  return {
+    id:            a.id,
+    title:         a.title,
+    body:          a.body,
+    primaryAction: a.action.replace(' →', ''),
+    onPrimary: () => {
+      if (a.route && a.routeParams) {
+        router.push({ pathname: a.route as any, params: a.routeParams });
+      } else if (a.route) {
+        router.push(a.route as any);
+      }
+    },
+  };
+}
+
+function buildBriefingCards(claudeText: string | null, alerts: AppAlert[], summary: PortfolioSummary | null): Insight[] {
+  const criticalAlerts = alerts.filter(a => a.severity === 'emergency');
+  const cards: Insight[] = [
+    ...(claudeText ? [makeClaudeBriefingInsight(claudeText)] : []),
+    ...criticalAlerts.map(alertToInsight),
+  ].filter(c => !dismissedInsightIds.has(c.id));
+
+  const capped = cards.slice(0, MAX_BRIEFING_CARDS);
+  return capped.length > 0 ? capped : [makeSummaryInsight(summary)].filter(c => !dismissedInsightIds.has(c.id));
 }
 
 export default function HomeScreen() {
@@ -83,7 +95,6 @@ export default function HomeScreen() {
   const [insightIdx,    setInsightIdx]    = useState(0);
   const [actionAlerts,  setActionAlerts]  = useState<AppAlert[]>([]);
   const [activity,      setActivity]      = useState<ActivityItem[]>([]);
-  const [briefingMode,  setBriefingMode]  = useState<BriefingMode>('daily');
   const [refreshing,    setRefreshing]    = useState(false);
   const activeWsId = useRef<string | null>(null);
 
@@ -113,69 +124,30 @@ export default function HomeScreen() {
     const year  = now.getFullYear();
     const month = now.getMonth() + 1;
 
-    const [sum, alerts, propsRes, cached, prefs] = await Promise.all([
+    const [sum, alerts, propsRes, cached] = await Promise.all([
       getPortfolioSummary(wsId, year, month).catch(() => null),
       generateAlerts(wsId, year, month).catch(() => []),
       supabase.from('properties').select('id').eq('workspace_id', wsId),
       getCachedInsights(wsId).catch(() => null),
-      getPreferences().catch(() => null),
     ]);
 
     if (sum) setSummary(sum);
     setActionAlerts(alerts.slice(0, 6));
 
-    // Update briefing mode from prefs (source of truth from DB)
-    if (prefs) setBriefingMode(prefs.briefing_mode);
-
-    // Use prefs value directly (avoids stale closure from briefingMode state)
-    const currentMode: BriefingMode = prefs?.briefing_mode ?? 'daily';
-    const claudeText: string | null =
-      currentMode === 'weekly'  ? (cached?.briefing_weekly  ?? null) :
-      currentMode === 'monthly' ? (cached?.briefing_monthly ?? null) :
-                                   (cached?.briefing_daily   ?? null);
-
-    // Hero card: Claude briefing first (if available), then alert-derived, then summary fallback
-    const alertInsights: Insight[] = alerts.slice(0, 3).map(a => ({
-      title:           a.title,
-      body:            a.body,
-      primaryAction:   a.action.replace(' →', ''),
-      secondaryAction: 'Dismiss',
-      onPrimary: () => {
-        if (a.route && a.routeParams) {
-          router.push({ pathname: a.route as any, params: a.routeParams });
-        } else if (a.route) {
-          router.push(a.route as any);
-        }
-      },
-    }));
-
-    const derived: Insight[] = [
-      ...(claudeText ? [makeClaudeBriefingInsight(claudeText, currentMode)] : []),
-      ...alertInsights,
-    ];
-    setInsights(derived.length > 0 ? derived : [makeSummaryInsight(sum)]);
+    const claudeText = cached?.briefing_daily ?? null;
+    setInsights(buildBriefingCards(claudeText, alerts, sum));
     setInsightIdx(0);
 
     // Background refresh: rebuilds portfolio_insights via Edge Function (fires and forgets)
-    // When complete, re-read cache and prepend updated Claude briefing
+    // When complete, re-read cache and swap in the updated Claude briefing card.
     refreshInsights(wsId).then(fresh => {
-      if (!fresh) return;
-      const freshText: string | null =
-        currentMode === 'weekly'  ? (fresh.briefing_weekly  ?? null) :
-        currentMode === 'monthly' ? (fresh.briefing_monthly ?? null) :
-                                     (fresh.briefing_daily   ?? null);
-      if (freshText) {
-        setInsights(prev => {
-          // Replace or prepend Claude insight (first item if it was a Claude one)
-          const withoutClaude = prev.filter(i =>
-            i.title !== "Today's Briefing" &&
-            i.title !== 'Weekly Summary'   &&
-            i.title !== 'Monthly Overview'
-          );
-          return [makeClaudeBriefingInsight(freshText, currentMode), ...withoutClaude];
-        });
-        setInsightIdx(0);
-      }
+      if (!fresh?.briefing_daily) return;
+      if (dismissedInsightIds.has('claude-briefing')) return;
+      setInsights(prev => {
+        const withoutClaude = prev.filter(i => i.id !== 'claude-briefing');
+        return [makeClaudeBriefingInsight(fresh.briefing_daily as string), ...withoutClaude].slice(0, MAX_BRIEFING_CARDS);
+      });
+      setInsightIdx(0);
     }).catch(() => {});
 
     // Recent payments
@@ -206,13 +178,14 @@ export default function HomeScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const dismissInsight = useCallback(() => {
+  const dismissInsight = useCallback((id: string) => {
+    dismissedInsightIds.add(id);
     setInsights(prev => {
-      const next = prev.filter((_, i) => i !== insightIdx);
+      const next = prev.filter(i => i.id !== id);
       return next.length > 0 ? next : [makeSummaryInsight(summary)];
     });
     setInsightIdx(0);
-  }, [insightIdx, summary]);
+  }, [summary]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -221,31 +194,16 @@ export default function HomeScreen() {
   };
 
   const hasAlerts = actionAlerts.some(a => a.severity === 'emergency');
-
-  // Briefing mode filtering
-  const visibleAlerts = actionAlerts.filter(a => {
-    if (briefingMode === 'daily')  return a.severity === 'emergency';
-    if (briefingMode === 'weekly') return a.severity !== 'info';
-    return true;
-  }).slice(0, 3);
-
-  const cutoffDate = (() => {
-    const d = new Date();
-    if (briefingMode === 'daily')  d.setDate(d.getDate() - 1);
-    if (briefingMode === 'weekly') d.setDate(d.getDate() - 7);
-    else d.setDate(1); // monthly: start of month
-    return d.toISOString().slice(0, 10);
-  })();
-  const visibleActivity = activity.filter(a => !a.rawDate || a.rawDate >= cutoffDate).slice(0, 3);
+  const visibleAlerts = actionAlerts.filter(a => a.severity === 'emergency').slice(0, 3);
+  const visibleActivity = activity.slice(0, 3);
 
   return (
     <View style={styles.root}>
       {/* Gradient hero header */}
       <LinearGradient colors={Gradients.primary} style={[styles.hero, { paddingTop: insets.top + 12 }]}>
-        {/* Top row: greeting + workspace + bell */}
         <View style={styles.heroTop}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>{greetingFor(userName, briefingMode)}</Text>
+            <Text style={styles.greeting}>{greetingFor(userName)}</Text>
             <TouchableOpacity onPress={() => router.push('/workspace-picker')} activeOpacity={0.8}>
               <View style={styles.workspacePill}>
                 <Text style={styles.workspaceLabel}>⊞  {workspaceName || 'Select workspace'}  ▾</Text>
@@ -261,25 +219,6 @@ export default function HomeScreen() {
             {hasAlerts && <View style={styles.bellDot} />}
           </TouchableOpacity>
         </View>
-
-        {/* Briefing mode chips */}
-        <View style={styles.chips}>
-          {(['daily', 'weekly', 'monthly'] as BriefingMode[]).map(mode => (
-            <TouchableOpacity
-              key={mode}
-              style={[styles.chip, briefingMode === mode && styles.chipActive]}
-              onPress={() => {
-                setBriefingMode(mode);
-                updatePreferences({ briefing_mode: mode }).catch(() => {});
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.chipLabel, briefingMode === mode && styles.chipLabelActive]}>
-                {BRIEFING_LABELS[mode]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
       </LinearGradient>
 
       {/* Scrollable content */}
@@ -290,10 +229,9 @@ export default function HomeScreen() {
       >
         {/* AI Hero Card */}
         <AIHeroCard
-          insight={insights[Math.min(insightIdx, insights.length - 1)]}
-          total={insights.length}
-          current={Math.min(insightIdx, insights.length - 1)}
-          onDotPress={setInsightIdx}
+          insights={insights}
+          current={insightIdx}
+          onIndexChange={setInsightIdx}
           onDismiss={dismissInsight}
         />
 
@@ -314,7 +252,7 @@ export default function HomeScreen() {
             {visibleAlerts.map(alert => (
               <TouchableOpacity
                 key={alert.id}
-                style={[styles.actionRow, alert.severity === 'emergency' && styles.actionRowEmergency]}
+                style={[styles.actionRow, styles.actionRowEmergency]}
                 onPress={() => {
                   if (alert.route && alert.routeParams) {
                     router.push({ pathname: alert.route as any, params: alert.routeParams });
@@ -324,9 +262,7 @@ export default function HomeScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <View style={[styles.severityDot, {
-                  backgroundColor: alert.severity === 'emergency' ? Colors.red : Colors.yellow,
-                }]} />
+                <View style={[styles.severityDot, { backgroundColor: Colors.red }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.actionTitle}>{alert.title}</Text>
                   <Text style={styles.actionSub}>{alert.property}  •  {alert.time}</Text>
@@ -360,7 +296,6 @@ const styles = StyleSheet.create({
     flexDirection:  'row',
     alignItems:     'flex-start',
     justifyContent: 'space-between',
-    marginBottom:   16,
   },
   greeting: { color: '#FFFFFF', fontSize: 20, fontWeight: '700', marginBottom: 6 },
   workspacePill: {
@@ -386,23 +321,6 @@ const styles = StyleSheet.create({
     borderWidth:     1.5,
     borderColor:     Colors.purple,
   },
-
-  // Briefing chips
-  chips:          { flexDirection: 'row', gap: 8 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical:   6,
-    borderRadius:      16,
-    backgroundColor:   'rgba(255,255,255,0.15)',
-    borderWidth:       1,
-    borderColor:       'rgba(255,255,255,0.2)',
-  },
-  chipActive: {
-    backgroundColor: '#FFFFFF',
-    borderColor:     '#FFFFFF',
-  },
-  chipLabel:       { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '500' },
-  chipLabelActive: { color: Colors.blue, fontWeight: '700' },
 
   // Content
   scroll: { flex: 1 },
