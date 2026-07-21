@@ -120,7 +120,7 @@ export default function PortfolioScreen() {
       const occupancy   = totalUnits > 0 ? occupied / totalUnits : 1;
       // 2-axis health score: collection 60pts + occupancy 40pts
       const healthScore = Math.round(pct * 60 + occupancy * 40);
-      return { ...p, cashFlow: cf, collectionRate: pct, health: h, badgeLabel: toBadge(h, cf), healthScore };
+      return { ...p, unit_count: totalUnits, cashFlow: cf, collectionRate: pct, health: h, badgeLabel: toBadge(h, cf), healthScore };
     });
 
     rows.sort((a, b) => ({ critical: 0, warning: 1, healthy: 2 }[a.health] - { critical: 0, warning: 1, healthy: 2 }[b.health]));

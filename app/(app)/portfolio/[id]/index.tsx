@@ -208,7 +208,7 @@ export default function PropertyDetailScreen() {
         <Text style={styles.heroName} numberOfLines={1}>{property.name}</Text>
         <Text style={styles.heroAddr}>{property.address_line1}, {property.city}, {property.state}</Text>
         <Text style={styles.heroMeta}>
-          {property.property_type?.toUpperCase()}  •  {property.unit_count} units
+          {property.property_type?.toUpperCase()}  •  {property.units?.length ?? 0} units
         </Text>
       </LinearGradient>
 
