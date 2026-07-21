@@ -218,7 +218,7 @@ export default function PropertyDetailScreen() {
           { label: 'Value',     value: fmt(metrics?.current_value    ?? property.current_market_value) },
           { label: 'Equity',    value: fmt(metrics?.equity           ?? property.total_equity) },
           { label: 'Cash Flow', value: fmt(monthlyCF) },
-          { label: 'ROE',       value: fmtPct(metrics?.roe           ?? property.roe_percentage) },
+          { label: 'ROE',       value: fmtPct(metrics?.roe) },
         ].map(({ label, value }, i) => (
           <View key={label} style={styles.statItem}>
             {i > 0 && <View style={styles.statDivider} />}

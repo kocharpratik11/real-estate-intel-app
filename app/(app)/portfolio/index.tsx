@@ -88,6 +88,11 @@ export default function PortfolioScreen() {
         .filter((m): m is NonNullable<typeof m> => m != null)
         .map(m => [m.property_id, m.monthly_cash_flow])
     );
+    const roeByProp = new Map<string, number | null>(
+      metricsResults
+        .filter((m): m is NonNullable<typeof m> => m != null)
+        .map(m => [m.property_id, m.roe])
+    );
     const healthByProp = new Map(propIds.map((id, i) => [id, healthResults[i]]));
 
     // Fetch active leases for occupancy
@@ -119,6 +124,7 @@ export default function PortfolioScreen() {
       const pct         = hs?.detail.collectionRate ?? 1;
       const healthScore = hs?.score ?? 0;
       const h           = toHealth(healthScore);
+      const roe         = roeByProp.get(p.id) ?? null;
       return {
         ...p,
         unit_count:     totalUnits,
@@ -128,6 +134,7 @@ export default function PortfolioScreen() {
         health:         h,
         badgeLabel:     toBadge(h, cf),
         healthScore,
+        roe,
       };
     });
 

@@ -97,15 +97,22 @@ export async function getPropertyMetrics(
   const paid  = rows.filter(r => r.status === 'paid').length;
   const total = rows.length;
 
+  const monthlyCashFlow = m?.monthly_cash_flow ?? 0;
+  const equity          = m?.current_equity    ?? null;
+  // ROE = annualized cash flow / current equity — verified against the web app's actual
+  // displayed values. Not NOI / purchase price (roe_percentage's documented formula);
+  // that's a different, stale metric that no longer matches what's shown as "ROE".
+  const roe = (equity != null && equity !== 0) ? (monthlyCashFlow * 12 / equity) * 100 : null;
+
   return {
     property_id:       propertyId,
-    monthly_cash_flow: m?.monthly_cash_flow ?? 0,
+    monthly_cash_flow: monthlyCashFlow,
     collection_rate:   total > 0 ? paid / total : 0,
     units_paid:        paid,
     units_total:       total,
-    current_value:     m?.current_value   ?? null,
-    equity:            m?.current_equity  ?? null,
-    roe:               m?.roe_percentage  ?? null,
+    current_value:     m?.current_value ?? null,
+    equity,
+    roe,
     vacancies,
   };
 }

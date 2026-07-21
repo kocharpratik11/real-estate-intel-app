@@ -11,6 +11,7 @@ export type PropertyRowData = Property & {
   health:         HealthStatus;
   vacancies?:     number;
   healthScore?:   number;  // 0–100, Phase 2
+  roe?:           number | null;  // annualized cash flow / current equity, as a percentage
 };
 
 type Props = {
@@ -59,17 +60,24 @@ export function PropertyRow({ property: p, onPress }: Props) {
         {/* name row */}
         <View style={styles.nameRow}>
           <Text style={styles.name}>{p.name}</Text>
-          {p.healthScore != null
-            ? <ScoreChip score={p.healthScore} />
-            : (
-              <View style={[styles.badge, {
-                backgroundColor: HEALTH_BADGE_BG[p.health],
-                borderColor:     HEALTH_BADGE_BD[p.health],
-              }]}>
-                <Text style={[styles.badgeText, { color: accentColor }]}>{p.badgeLabel}</Text>
-              </View>
-            )
-          }
+          <View style={styles.badgeCol}>
+            {p.healthScore != null
+              ? <ScoreChip score={p.healthScore} />
+              : (
+                <View style={[styles.badge, {
+                  backgroundColor: HEALTH_BADGE_BG[p.health],
+                  borderColor:     HEALTH_BADGE_BD[p.health],
+                }]}>
+                  <Text style={[styles.badgeText, { color: accentColor }]}>{p.badgeLabel}</Text>
+                </View>
+              )
+            }
+            {p.roe != null && (
+              <Text style={[styles.roeText, { color: p.roe < 0 ? Colors.red : Colors.textMuted }]}>
+                {p.roe.toFixed(1)}% ROE
+              </Text>
+            )}
+          </View>
         </View>
 
         {/* address + units */}
@@ -149,6 +157,14 @@ const styles = StyleSheet.create({
   },
   scoreNum:   { fontSize: 14, fontWeight: '700' },
   scoreDenom: { fontSize: 9,  fontWeight: '600' },
+  badgeCol: {
+    alignItems: 'flex-end',
+    gap:        3,
+  },
+  roeText: {
+    fontSize:   9,
+    fontWeight: '700',
+  },
   address: {
     color:        Colors.textMuted,
     fontSize:     11,
