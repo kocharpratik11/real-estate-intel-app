@@ -26,6 +26,43 @@ export async function getRentPayments(
 }
 
 /**
+ * Create a one-off charge (late fee, security deposit, pet fee, or other)
+ * against a lease — mirrors the web app's createOneOffCharge server action.
+ */
+export async function createOneOffCharge(data: {
+  propertyId:         string;
+  leaseId:             string;
+  chargeType:          'late_fee' | 'security_deposit' | 'pet_fee' | 'other';
+  chargeDescription?:  string;
+  amount:              number;
+  dueDate:             string;
+  notes?:              string;
+}): Promise<void> {
+  const { data: lease, error: leaseErr } = await supabase
+    .from('leases')
+    .select('unit_id, workspace_id')
+    .eq('id', data.leaseId)
+    .single();
+  if (leaseErr) throw leaseErr;
+
+  const { error } = await supabase.from('rent_payments').insert({
+    workspace_id:       lease.workspace_id,
+    lease_id:           data.leaseId,
+    property_id:        data.propertyId,
+    unit_id:            lease.unit_id,
+    charge_type:        data.chargeType,
+    charge_description: data.chargeDescription ?? null,
+    period_year:        null,
+    period_month:       null,
+    due_date:           data.dueDate,
+    amount_due:         data.amount,
+    status:             'pending',
+    notes:              data.notes ?? null,
+  });
+  if (error) throw error;
+}
+
+/**
  * Record a lump-sum payment against a lease and apply it FIFO (oldest due_date
  * first) across its outstanding pending/partial/late charges — mirroring the
  * web app's recordPayment server action exactly, so mobile and web produce

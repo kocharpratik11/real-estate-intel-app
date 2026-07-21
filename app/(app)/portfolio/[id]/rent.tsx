@@ -7,10 +7,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getRentPayments, buildLedger } from '@/lib/api/rent';
+import { getActiveLeases } from '@/lib/api/properties';
 import { LedgerRow } from '@/components/rent/LedgerRow';
 import { RecordPaymentSheet } from '@/components/rent/RecordPaymentSheet';
+import { AddChargeSheet } from '@/components/rent/AddChargeSheet';
 import { Colors, Gradients } from '@/constants/colors';
-import type { LedgerEvent, RentPayment, PaymentStatus } from '@/types';
+import type { LedgerEvent, RentPayment, PaymentStatus, Lease } from '@/types';
 
 type Filter = 'all' | 'paid' | 'overdue' | 'partial' | 'vacant';
 const UNIT_ALL = 'all';
@@ -34,13 +36,19 @@ export default function RentLedgerScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [payLease,   setPayLease]   = useState<{ leaseId: string; unitLabel: string; charges: RentPayment[] } | null>(null);
   const [showSheet,  setShowSheet]  = useState(false);
+  const [activeLeases,  setActiveLeases]  = useState<Lease[]>([]);
+  const [showAddCharge, setShowAddCharge] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
     // Fetch the full history once — switching between "this month, all units" and
     // "all time, one unit" is then just client-side filtering, no re-fetch needed.
-    const data = await getRentPayments(id).catch(() => []);
+    const [data, leases] = await Promise.all([
+      getRentPayments(id).catch(() => []),
+      getActiveLeases(id).catch(() => []),
+    ]);
     setAllPayments(data);
+    setActiveLeases(leases);
     setLoading(false);
   }, [id]);
 
@@ -126,9 +134,16 @@ export default function RentLedgerScreen() {
         colors={Gradients.primary}
         style={[styles.hero, { paddingTop: insets.top + 8 }]}
       >
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.back}>‹ Property</Text>
-        </TouchableOpacity>
+        <View style={styles.heroTopRow}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.back}>‹ Property</Text>
+          </TouchableOpacity>
+          {activeLeases.length > 0 && (
+            <TouchableOpacity onPress={() => setShowAddCharge(true)} style={styles.addChargeBtn}>
+              <Text style={styles.addChargeLabel}>+ Add Charge</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <Text style={styles.title}>Rent Ledger</Text>
       </LinearGradient>
 
@@ -277,6 +292,17 @@ export default function RentLedgerScreen() {
           onSuccess={() => { setShowSheet(false); setPayLease(null); load(); }}
         />
       )}
+
+      {/* Add Charge Sheet */}
+      {showAddCharge && (
+        <AddChargeSheet
+          propertyId={id!}
+          activeLeases={activeLeases}
+          visible={showAddCharge}
+          onClose={() => setShowAddCharge(false)}
+          onSuccess={() => { setShowAddCharge(false); load(); }}
+        />
+      )}
     </View>
   );
 }
@@ -288,8 +314,20 @@ const styles = StyleSheet.create({
     paddingBottom:     16,
     gap:               4,
   },
+  heroTopRow: {
+    flexDirection:  'row',
+    justifyContent: 'space-between',
+    alignItems:     'center',
+  },
   back:  { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginBottom: 2 },
   title: { color: Colors.white, fontSize: 22, fontWeight: '700' },
+  addChargeBtn: {
+    backgroundColor:   'rgba(255,255,255,0.2)',
+    borderRadius:      8,
+    paddingHorizontal: 10,
+    paddingVertical:   5,
+  },
+  addChargeLabel: { color: Colors.white, fontSize: 12, fontWeight: '700' },
   body:  { flex: 1, backgroundColor: Colors.bg },
   monthNav: {
     flexDirection:     'row',
