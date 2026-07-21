@@ -10,7 +10,11 @@ function TabIcon({ label, icon, focused }: { label: string; icon: keyof typeof I
   return (
     <View style={styles.tabIcon}>
       <Ionicons name={icon} size={22} color={focused ? Colors.blue : Colors.textMuted} />
-      <Text style={[styles.tabLabel, { color: focused ? Colors.blue : Colors.textMuted }]}>
+      <Text
+        style={[styles.tabLabel, { color: focused ? Colors.blue : Colors.textMuted }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
         {label}
       </Text>
     </View>
@@ -94,6 +98,9 @@ export default function AppLayout() {
             tabBarIcon: ({ focused }) => <TabIcon label="More"      icon="menu"          focused={focused} />,
           }}
         />
+        {/* Push-only screens that live in this same route group — hidden from the tab bar */}
+        <Tabs.Screen name="activity" options={{ href: null }} />
+        <Tabs.Screen name="notification-settings" options={{ href: null }} />
       </Tabs>
       <FloatingChatButton />
     </View>
