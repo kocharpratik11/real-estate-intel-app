@@ -5,15 +5,21 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Colors } from '@/constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
+import { computeMortgageBalance } from '@/lib/utils/mortgage';
 
 type Loan = {
   id: string;
   loan_type: string;
   lender_name: string | null;
-  current_balance: number;
+  current_balance: number | null;
+  loan_amount: number | null;
+  origination_date: string | null;
+  loan_term_months: number | null;
+  is_interest_only: boolean | null;
   interest_rate: number;
   monthly_payment: number;
   is_primary: boolean;
+  effectiveBalance: number;
 };
 
 export default function EquityScreen() {
@@ -26,11 +32,23 @@ export default function EquityScreen() {
     if (!id) return;
     const { data } = await supabase
       .from('properties')
-      .select('current_market_value, total_equity, financing_structures(id, loan_type, lender_name, current_balance, interest_rate, monthly_payment, is_primary)')
+      .select('current_market_value, total_equity, financing_structures(id, loan_type, lender_name, current_balance, loan_amount, origination_date, loan_term_months, is_interest_only, interest_rate, monthly_payment, is_primary)')
       .eq('id', id)
       .single();
     setProperty(data);
-    setLoans((data?.financing_structures ?? []) as Loan[]);
+    // current_balance isn't reliably kept in sync — compute the real remaining balance
+    // from the loan terms (same amortization formula the web app uses) whenever we have
+    // enough to do so, rather than trusting a column that may just be unpopulated.
+    const rawLoans = (data?.financing_structures ?? []) as Omit<Loan, 'effectiveBalance'>[];
+    setLoans(rawLoans.map(l => ({
+      ...l,
+      effectiveBalance: (l.loan_amount != null && l.origination_date)
+        ? computeMortgageBalance(l.loan_amount, l.interest_rate, l.monthly_payment, l.origination_date, {
+            isInterestOnly: l.is_interest_only ?? false,
+            loanTermMonths: l.loan_term_months,
+          })
+        : (l.current_balance ?? 0),
+    })));
     setLoading(false);
   }, [id]);
 
@@ -47,7 +65,7 @@ export default function EquityScreen() {
   if (!property) return null;
 
   const currentValue = property.current_market_value ?? 0;
-  const totalDebt = loans.reduce((sum, l) => sum + (l.current_balance ?? 0), 0);
+  const totalDebt = loans.reduce((sum, l) => sum + l.effectiveBalance, 0);
   const equity = currentValue - totalDebt;
   const ltv = currentValue > 0 ? (totalDebt / currentValue) * 100 : 0;
   const equityPct = 100 - ltv;
@@ -111,7 +129,7 @@ export default function EquityScreen() {
                     {loan.loan_type?.replace(/_/g, ' ')}{loan.is_primary ? '  ·  Primary' : ''}
                   </Text>
                   <Text style={styles.loanBalance}>
-                    {formatCurrency(loan.current_balance)}
+                    {formatCurrency(loan.effectiveBalance)}
                   </Text>
                 </View>
                 {loan.lender_name && <Text style={styles.loanLender}>{loan.lender_name}</Text>}
