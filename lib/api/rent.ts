@@ -25,23 +25,86 @@ export async function getRentPayments(
   return (data ?? []) as unknown as RentPayment[];
 }
 
-export async function recordPayment(
-  paymentId: string,
-  amountPaid: number,
-  paidDate: string,
-  method: string,
-  notes?: string
-): Promise<void> {
-  const { error } = await supabase
+/**
+ * Record a lump-sum payment against a lease and apply it FIFO (oldest due_date
+ * first) across its outstanding pending/partial/late charges — mirroring the
+ * web app's recordPayment server action exactly, so mobile and web produce
+ * identical ledger state. Any amount left over after all outstanding charges
+ * are covered is recorded as a "Prepayment Credit" entry.
+ */
+export async function recordLumpSumPayment(data: {
+  leaseId:     string;
+  propertyId:  string;
+  amount:      number;
+  paymentDate: string;
+  notes?:      string;
+}): Promise<{ applied: number; credit: number }> {
+  if (data.amount <= 0) throw new Error('Payment amount must be positive.');
+
+  const { data: charges, error: chargesErr } = await supabase
     .from('rent_payments')
-    .update({
-      amount_paid: amountPaid,
-      paid_date:   paidDate,
-      status:      'paid',
-      notes:       notes ?? null,
-    })
-    .eq('id', paymentId);
-  if (error) throw error;
+    .select('id, amount_due, amount_paid, charge_type, charge_description, due_date')
+    .eq('lease_id', data.leaseId)
+    .in('status', ['pending', 'partial', 'late'])
+    .order('due_date', { ascending: true });
+  if (chargesErr) throw chargesErr;
+
+  const pending = (charges ?? []).filter(
+    c => !(c.charge_type === 'other' && c.charge_description === 'Prepayment Credit')
+  );
+
+  let remaining = data.amount;
+  for (const charge of pending) {
+    if (remaining <= 0) break;
+    const outstanding = charge.amount_due - (charge.amount_paid ?? 0);
+    if (outstanding <= 0) continue;
+
+    const applying = Math.min(remaining, outstanding);
+    const newAmountPaid = (charge.amount_paid ?? 0) + applying;
+    const newStatus = newAmountPaid >= charge.amount_due ? 'paid' : 'partial';
+
+    const { error } = await supabase
+      .from('rent_payments')
+      .update({
+        amount_paid: newAmountPaid,
+        paid_date:   data.paymentDate,
+        status:      newStatus,
+        ...(data.notes ? { notes: data.notes } : {}),
+      })
+      .eq('id', charge.id);
+    if (error) throw error;
+    remaining -= applying;
+  }
+
+  // Any remaining amount becomes a prepayment credit
+  if (remaining > 0.005) {
+    const { data: lease, error: leaseErr } = await supabase
+      .from('leases')
+      .select('unit_id, workspace_id')
+      .eq('id', data.leaseId)
+      .single();
+    if (leaseErr) throw leaseErr;
+
+    const { error } = await supabase.from('rent_payments').insert({
+      workspace_id:       lease.workspace_id,
+      lease_id:           data.leaseId,
+      property_id:        data.propertyId,
+      unit_id:            lease.unit_id,
+      charge_type:        'other',
+      charge_description: 'Prepayment Credit',
+      period_year:        null,
+      period_month:       null,
+      due_date:           data.paymentDate,
+      amount_due:         0,
+      amount_paid:        Math.round(remaining * 100) / 100,
+      paid_date:          data.paymentDate,
+      status:             'paid',
+      notes:              data.notes ?? null,
+    });
+    if (error) throw error;
+  }
+
+  return { applied: data.amount - remaining, credit: remaining > 0.005 ? remaining : 0 };
 }
 
 export async function updatePaymentStatus(

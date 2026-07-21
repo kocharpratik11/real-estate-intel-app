@@ -32,7 +32,7 @@ export default function RentLedgerScreen() {
   const [month,      setMonth]      = useState(MONTH);
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selected,   setSelected]   = useState<RentPayment | null>(null);
+  const [payLease,   setPayLease]   = useState<{ leaseId: string; unitLabel: string; charges: RentPayment[] } | null>(null);
   const [showSheet,  setShowSheet]  = useState(false);
 
   const load = useCallback(async () => {
@@ -92,6 +92,23 @@ export default function RentLedgerScreen() {
     { key: 'overdue', label: 'Overdue' },
     { key: 'partial', label: 'Partial' },
   ];
+
+  // Opening "Record Payment" on any charge operates on that charge's whole
+  // lease — mirroring the web app, which applies a lump-sum payment FIFO
+  // across all of a lease's outstanding charges, not just the tapped one.
+  const openRecordPayment = (payment: RentPayment) => {
+    const charges = allPayments.filter(p =>
+      p.lease_id === payment.lease_id &&
+      ['pending', 'partial', 'late'].includes(p.status) &&
+      !(p.charge_type === 'other' && p.charge_description?.toLowerCase().includes('prepayment credit'))
+    );
+    setPayLease({
+      leaseId:   payment.lease_id,
+      unitLabel: payment.units?.label ?? 'Unit',
+      charges,
+    });
+    setShowSheet(true);
+  };
 
   const prevMonth = () => {
     if (month === 1) { setYear(y => y - 1); setMonth(12); }
@@ -234,13 +251,13 @@ export default function RentLedgerScreen() {
                           },
                           {
                             text: 'Record Payment',
-                            onPress: () => { setSelected(e.sourcePayment); setShowSheet(true); },
+                            onPress: () => openRecordPayment(e.sourcePayment),
                           },
                           { text: 'Cancel', style: 'cancel' },
                         ]
                       );
                     }}
-                    onRecordPayment={() => { setSelected(e.sourcePayment); setShowSheet(true); }}
+                    onRecordPayment={() => openRecordPayment(e.sourcePayment)}
                   />
                 ))
             }
@@ -249,12 +266,15 @@ export default function RentLedgerScreen() {
       </View>
 
       {/* Record Payment Sheet */}
-      {selected && (
+      {payLease && (
         <RecordPaymentSheet
-          payment={selected}
+          leaseId={payLease.leaseId}
+          propertyId={id!}
+          unitLabel={payLease.unitLabel}
+          outstandingCharges={payLease.charges}
           visible={showSheet}
-          onClose={() => { setShowSheet(false); setSelected(null); }}
-          onSuccess={() => { setShowSheet(false); setSelected(null); load(); }}
+          onClose={() => { setShowSheet(false); setPayLease(null); }}
+          onSuccess={() => { setShowSheet(false); setPayLease(null); load(); }}
         />
       )}
     </View>
