@@ -5,11 +5,12 @@ import {
 } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Button } from '@/components/ui/Button';
-import { createTicket, MAINTENANCE_CATEGORIES, type MaintenanceCategory } from '@/lib/api/maintenance';
+import { createTicket, updateTicket, updateTicketStatus, MAINTENANCE_CATEGORIES, type MaintenanceCategory } from '@/lib/api/maintenance';
 import { hapticSuccess, hapticError } from '@/lib/haptics';
 import type { MaintenanceEvent } from '@/types';
 
 type Priority = MaintenanceEvent['priority'];
+type Status   = MaintenanceEvent['status'];
 
 const PRIORITIES: { value: Priority; label: string; color: string }[] = [
   { value: 'low',    label: 'Low',    color: Colors.textMuted },
@@ -18,26 +19,44 @@ const PRIORITIES: { value: Priority; label: string; color: string }[] = [
   { value: 'urgent', label: 'Urgent', color: Colors.red },
 ];
 
+const STATUSES: { value: Status; label: string }[] = [
+  { value: 'requested',   label: 'Requested' },
+  { value: 'scheduled',   label: 'Scheduled' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'completed',   label: 'Completed' },
+  { value: 'cancelled',   label: 'Cancelled' },
+];
+
 type Props = {
   propertyId:   string;
   propertyName: string;
+  ticket?:      MaintenanceEvent | null;   // present = edit/close an existing ticket
   visible:      boolean;
   onClose:      () => void;
   onSuccess:    () => void;
 };
 
-export function NewTicketSheet({ propertyId, propertyName, visible, onClose, onSuccess }: Props) {
-  const [title,     setTitle]    = useState('');
-  const [desc,      setDesc]     = useState('');
-  const [category,  setCategory] = useState<MaintenanceCategory>(MAINTENANCE_CATEGORIES[0].value);
-  const [priority,  setPriority] = useState<Priority>('normal');
-  const [estCost,   setEstCost]  = useState('');
-  const [loading,   setLoading]  = useState(false);
-  const [error,     setError]    = useState<string | null>(null);
+export function TicketSheet({ propertyId, propertyName, ticket, visible, onClose, onSuccess }: Props) {
+  const isEdit = !!ticket;
+
+  const [title,      setTitle]      = useState(ticket?.title ?? '');
+  const [desc,       setDesc]       = useState(ticket?.description ?? '');
+  const [category,   setCategory]   = useState<MaintenanceCategory>((ticket?.category as MaintenanceCategory) ?? MAINTENANCE_CATEGORIES[0].value);
+  const [priority,   setPriority]   = useState<Priority>(ticket?.priority ?? 'normal');
+  const [status,     setStatus]     = useState<Status>(ticket?.status ?? 'requested');
+  const [estCost,    setEstCost]    = useState(ticket?.estimated_cost != null ? String(ticket.estimated_cost) : '');
+  const [actualCost, setActualCost] = useState(ticket?.actual_cost != null ? String(ticket.actual_cost) : '');
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
 
   const reset = () => {
-    setTitle(''); setDesc('');
-    setCategory(MAINTENANCE_CATEGORIES[0].value); setPriority('normal'); setEstCost(''); setError(null);
+    setTitle(ticket?.title ?? ''); setDesc(ticket?.description ?? '');
+    setCategory((ticket?.category as MaintenanceCategory) ?? MAINTENANCE_CATEGORIES[0].value);
+    setPriority(ticket?.priority ?? 'normal');
+    setStatus(ticket?.status ?? 'requested');
+    setEstCost(ticket?.estimated_cost != null ? String(ticket.estimated_cost) : '');
+    setActualCost(ticket?.actual_cost != null ? String(ticket.actual_cost) : '');
+    setError(null);
   };
 
   const handleClose = () => { reset(); onClose(); };
@@ -46,23 +65,41 @@ export function NewTicketSheet({ propertyId, propertyName, visible, onClose, onS
     if (!title.trim()) { setError('Title is required'); return; }
     const cost = estCost ? parseFloat(estCost) : null;
     if (estCost && (isNaN(cost!) || cost! < 0)) { setError('Enter a valid estimated cost'); return; }
+    let actual: number | undefined;
+    if (status === 'completed' && actualCost) {
+      actual = parseFloat(actualCost);
+      if (isNaN(actual) || actual < 0) { setError('Enter a valid actual cost'); return; }
+    }
     setLoading(true);
     setError(null);
     try {
-      await createTicket({
-        property_id:    propertyId,
-        title:          title.trim(),
-        description:    desc       || null,
-        category,
-        priority,
-        estimated_cost: cost,
-      });
+      if (isEdit && ticket) {
+        await updateTicket(ticket.id, {
+          title:          title.trim(),
+          description:    desc || null,
+          category,
+          priority,
+          estimated_cost: cost,
+        });
+        if (status !== ticket.status) {
+          await updateTicketStatus(ticket.id, status, status === 'completed' ? { actual_cost: actual } : undefined);
+        }
+      } else {
+        await createTicket({
+          property_id:    propertyId,
+          title:          title.trim(),
+          description:    desc || null,
+          category,
+          priority,
+          estimated_cost: cost,
+        });
+      }
       hapticSuccess();
       reset();
       onSuccess();
     } catch (e: any) {
       hapticError();
-      setError(e.message ?? 'Failed to create ticket');
+      setError(e.message ?? 'Failed to save ticket');
     } finally {
       setLoading(false);
     }
@@ -74,7 +111,7 @@ export function NewTicketSheet({ propertyId, propertyName, visible, onClose, onS
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.sheetWrap}>
           <View style={styles.sheet}>
             <View style={styles.handle} />
-            <Text style={styles.title}>New Maintenance Ticket</Text>
+            <Text style={styles.title}>{isEdit ? 'Edit Maintenance Ticket' : 'New Maintenance Ticket'}</Text>
 
             {/* Property context */}
             <View style={styles.contextRow}>
@@ -83,6 +120,26 @@ export function NewTicketSheet({ propertyId, propertyName, visible, onClose, onS
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {/* Status (edit only) */}
+              {isEdit && (
+                <>
+                  <Text style={styles.fieldLabel}>STATUS</Text>
+                  <View style={styles.statusRow}>
+                    {STATUSES.map(s => (
+                      <TouchableOpacity
+                        key={s.value}
+                        onPress={() => setStatus(s.value)}
+                        style={[styles.chip, status === s.value && styles.chipActive]}
+                      >
+                        <Text style={[styles.chipLabel, status === s.value && styles.chipLabelActive]}>
+                          {s.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+
               {/* Title */}
               <Text style={styles.fieldLabel}>ISSUE TITLE</Text>
               <TextInput
@@ -129,7 +186,7 @@ export function NewTicketSheet({ propertyId, propertyName, visible, onClose, onS
               <Text style={styles.fieldLabel}>DESCRIPTION (optional)</Text>
               <TextInput
                 style={[styles.input, styles.multiline]}
-                value={desc}
+                value={desc ?? ''}
                 onChangeText={setDesc}
                 placeholder="Describe the issue in detail..."
                 placeholderTextColor={Colors.textMuted}
@@ -152,9 +209,33 @@ export function NewTicketSheet({ propertyId, propertyName, visible, onClose, onS
                 />
               </View>
 
+              {/* Actual cost — only relevant once marked completed */}
+              {isEdit && status === 'completed' && (
+                <>
+                  <Text style={styles.fieldLabel}>ACTUAL COST (optional)</Text>
+                  <View style={styles.amountRow}>
+                    <Text style={styles.dollarSign}>$</Text>
+                    <TextInput
+                      style={styles.amountInput}
+                      value={actualCost}
+                      onChangeText={setActualCost}
+                      keyboardType="decimal-pad"
+                      placeholder="0.00"
+                      placeholderTextColor={Colors.textMuted}
+                      selectionColor={Colors.indigo}
+                    />
+                  </View>
+                </>
+              )}
+
               {error && <Text style={styles.error}>{error}</Text>}
 
-              <Button label="Submit Ticket" onPress={handleSubmit} loading={loading} style={styles.submitBtn} />
+              <Button
+                label={isEdit ? 'Save Changes' : 'Submit Ticket'}
+                onPress={handleSubmit}
+                loading={loading}
+                style={styles.submitBtn}
+              />
               <TouchableOpacity onPress={handleClose} style={styles.cancelBtn}>
                 <Text style={styles.cancelLabel}>Cancel</Text>
               </TouchableOpacity>
@@ -198,6 +279,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border, padding: 14, color: Colors.text, fontSize: 13,
   },
   multiline: { minHeight: 72, textAlignVertical: 'top' },
+  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   priorityRow: { flexDirection: 'row', gap: 8 },
   priorityBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

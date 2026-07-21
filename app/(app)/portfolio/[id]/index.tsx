@@ -15,7 +15,7 @@ import { getPropertyHealthScore, scoreColor, scoreLabel } from '@/lib/api/health
 import { Colors, Gradients } from '@/constants/colors';
 import { Badge } from '@/components/ui/Badge';
 import { LogExpenseSheet } from '@/components/expenses/LogExpenseSheet';
-import { NewTicketSheet } from '@/components/maintenance/NewTicketSheet';
+import { TicketSheet } from '@/components/maintenance/TicketSheet';
 import { CollectionBarChart, type MonthlyCollection } from '@/components/charts/CollectionBarChart';
 import { PLBarChart } from '@/components/charts/PLBarChart';
 import { getPLSummary, type MonthlyPL } from '@/lib/api/financials';
@@ -66,6 +66,7 @@ export default function PropertyDetailScreen() {
   const [refreshing,  setRefreshing]  = useState(false);
   const [showExpense,   setShowExpense]   = useState(false);
   const [showTicket,    setShowTicket]    = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<MaintenanceEvent | null>(null);
   const [chartData,     setChartData]     = useState<MonthlyCollection[]>([]);
   const [plData,        setPLData]        = useState<MonthlyPL[]>([]);
 
@@ -417,7 +418,7 @@ export default function PropertyDetailScreen() {
                 <Text style={styles.sectionSub}>{openTickets} open  •  {maintenance.length} total</Text>
               </View>
               <TouchableOpacity
-                onPress={() => setShowTicket(true)}
+                onPress={() => { setSelectedTicket(null); setShowTicket(true); }}
                 style={styles.addBtn}
                 activeOpacity={0.8}
               >
@@ -425,17 +426,22 @@ export default function PropertyDetailScreen() {
               </TouchableOpacity>
             </View>
             {maintenance.length === 0 ? (
-              <TouchableOpacity style={styles.emptyState} onPress={() => setShowTicket(true)} activeOpacity={0.8}>
+              <TouchableOpacity style={styles.emptyState} onPress={() => { setSelectedTicket(null); setShowTicket(true); }} activeOpacity={0.8}>
                 <Text style={styles.emptyIcon}>🔧</Text>
                 <Text style={styles.emptyTitle}>No maintenance tickets</Text>
                 <Text style={styles.emptySub}>Tap to submit your first ticket</Text>
               </TouchableOpacity>
             ) : (
               maintenance.map(m => (
-                <View key={m.id} style={[
-                  styles.maintenanceRow,
-                  m.priority === 'urgent' && styles.maintenanceUrgent,
-                ]}>
+                <TouchableOpacity
+                  key={m.id}
+                  style={[
+                    styles.maintenanceRow,
+                    m.priority === 'urgent' && styles.maintenanceUrgent,
+                  ]}
+                  onPress={() => { setSelectedTicket(m); setShowTicket(true); }}
+                  activeOpacity={0.8}
+                >
                   <View style={styles.maintenanceTop}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.maintenanceTitle}>{m.title}</Text>
@@ -462,7 +468,7 @@ export default function PropertyDetailScreen() {
                       </>
                     )}
                   </View>
-                </View>
+                </TouchableOpacity>
               ))
             )}
           </View>
@@ -505,12 +511,13 @@ export default function PropertyDetailScreen() {
         onClose={() => setShowExpense(false)}
         onSuccess={() => { setShowExpense(false); loadExpenses(); }}
       />
-      <NewTicketSheet
+      <TicketSheet
         propertyId={id ?? ''}
         propertyName={property?.name ?? ''}
+        ticket={selectedTicket}
         visible={showTicket}
-        onClose={() => setShowTicket(false)}
-        onSuccess={() => { setShowTicket(false); loadMaintenance(); }}
+        onClose={() => { setShowTicket(false); setSelectedTicket(null); }}
+        onSuccess={() => { setShowTicket(false); setSelectedTicket(null); loadMaintenance(); }}
       />
     </View>
   );

@@ -33,6 +33,23 @@ export async function createTicket(input: CreateTicketInput): Promise<Maintenanc
   return data as MaintenanceEvent;
 }
 
+export type UpdateTicketInput = {
+  title?: string;
+  description?: string | null;
+  category?: string | null;
+  priority?: MaintenanceEvent['priority'];
+  estimated_cost?: number | null;
+  scheduled_date?: string | null;
+};
+
+export async function updateTicket(ticketId: string, patch: UpdateTicketInput): Promise<void> {
+  const { error } = await supabase
+    .from('maintenance_events')
+    .update(patch)
+    .eq('id', ticketId);
+  if (error) throw error;
+}
+
 export async function updateTicketStatus(
   ticketId: string,
   status: MaintenanceEvent['status'],
