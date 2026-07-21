@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Switch, StyleSheet, Alert as RNAlert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Switch, StyleSheet, Alert as RNAlert, Linking, Platform } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +7,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { Colors, Gradients } from '@/constants/colors';
 import { useAuth } from '@/contexts/AuthContext';
+import { openWebApp } from '@/lib/utils/propertySetup';
+
+const IOS_APP_ID = '6776010572';
+const ANDROID_PACKAGE = 'com.assetbrain.app';
+
+function openStoreReview() {
+  const url = Platform.OS === 'ios'
+    ? `itms-apps://apps.apple.com/app/id${IOS_APP_ID}?action=write-review`
+    : `market://details?id=${ANDROID_PACKAGE}`;
+  const fallback = Platform.OS === 'ios'
+    ? `https://apps.apple.com/app/id${IOS_APP_ID}?action=write-review`
+    : `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}`;
+  Linking.openURL(url).catch(() => Linking.openURL(fallback));
+}
 
 type RowProps = { icon: keyof typeof Ionicons.glyphMap; label: string; sub?: string; onPress: () => void; danger?: boolean };
 
@@ -58,9 +72,6 @@ export default function MoreScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const soon = (label: string) => () =>
-    RNAlert.alert(label, 'This feature is not available yet.');
-
   const handleSignOut = () => {
     RNAlert.alert('Sign Out', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
@@ -97,7 +108,7 @@ export default function MoreScreen() {
               <Text style={styles.wsBadgeText}>{workspaceName}  ·  {roleLabel}</Text>
             </View>
           ) : null}
-          <TouchableOpacity style={styles.editBtn} onPress={soon('Edit Profile')}>
+          <TouchableOpacity style={styles.editBtn} onPress={() => router.push('/(app)/edit-profile')}>
             <Text style={styles.editLabel}>Edit Profile</Text>
           </TouchableOpacity>
         </LinearGradient>
@@ -111,19 +122,21 @@ export default function MoreScreen() {
               sub={workspaceName ? roleLabel : 'Tap to choose a workspace'}
               onPress={() => router.push('/workspace-picker')}
             />
-            <Row icon="people" label="Add / Join Workspace" sub="Create or accept an invite" onPress={soon('Add / Join Workspace')} />
+            <Row icon="add-circle" label="Create New Workspace" sub="Start a separate portfolio" onPress={() => router.push('/onboarding')} />
+            {workspaceRole === 'owner' && (
+              <Row icon="person-add" label="Invite Members" sub="Manage on assetbrain.app" onPress={openWebApp} />
+            )}
           </Section>
 
           <Section title="PREFERENCES">
             <Row icon="notifications" label="Notifications" sub="Alerts, reminders, updates" onPress={() => router.push('/(app)/notification-settings')} />
-            <Row icon="cash"          label="Currency"      sub="USD — US Dollar"            onPress={soon('Currency')} />
-            <Row icon="calendar"      label="Date Format"   sub="MM/DD/YYYY"                 onPress={soon('Date Format')} />
+            <Row icon="cash"          label="Currency & Date Format" sub="Display formatting"  onPress={() => router.push('/(app)/display-preferences')} />
           </Section>
 
           <Section title="SUPPORT">
-            <Row icon="help-circle" label="Help Center"   onPress={soon('Help Center')} />
-            <Row icon="mail"        label="Send Feedback" onPress={soon('Send Feedback')} />
-            <Row icon="star"        label="Rate the App"  onPress={soon('Rate the App')} />
+            <Row icon="help-circle" label="Help Center"   onPress={() => router.push('/(app)/help')} />
+            <Row icon="mail"        label="Send Feedback" onPress={() => Linking.openURL('mailto:support@assetbrain.app?subject=Asset%20Brain%20Feedback')} />
+            <Row icon="star"        label="Rate the App"  onPress={openStoreReview} />
           </Section>
 
           <Section title="ACCOUNT">

@@ -101,6 +101,9 @@ export default function AppLayout() {
         {/* Push-only screens that live in this same route group — hidden from the tab bar */}
         <Tabs.Screen name="activity" options={{ href: null }} />
         <Tabs.Screen name="notification-settings" options={{ href: null }} />
+        <Tabs.Screen name="edit-profile" options={{ href: null }} />
+        <Tabs.Screen name="display-preferences" options={{ href: null }} />
+        <Tabs.Screen name="help" options={{ href: null }} />
       </Tabs>
       <FloatingChatButton />
     </View>
