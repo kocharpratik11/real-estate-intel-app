@@ -72,17 +72,20 @@ export async function getPropertyHealthScore(
   const leases      = (leaseRes.data  ?? []) as any[];
   const maintenance = (mainRes.data   ?? []) as any[];
 
-  // --- Collection (0–40) ---
-  const totalRents     = rents.length;
-  const paidRents      = rents.filter(r => r.status === 'paid').length;
-  const collectionRate = totalRents > 0 ? paidRents / totalRents : 1;
-  const collection     = Math.round(collectionRate * 40);
-
-  // --- Occupancy (0–20) ---
+  // --- Occupancy (0–20) --- (computed first so collection can use occupiedUnits)
   const totalUnits    = unitIds.length;
   const occupiedUnits = new Set(leases.map((l: any) => l.unit_id)).size;
   const occupancyRate = totalUnits > 0 ? occupiedUnits / totalUnits : 1;
   const occupancy     = Math.round(occupancyRate * 20);
+
+  // --- Collection (0–40) ---
+  const totalRents     = rents.length;
+  const paidRents      = rents.filter(r => r.status === 'paid').length;
+  // No rent charges this month: only read as "fully collected" if a unit is actually
+  // occupied (e.g. billed but nothing outstanding yet). A fully vacant property has
+  // nothing to collect by definition — that's a failing signal, not a perfect one.
+  const collectionRate = totalRents > 0 ? paidRents / totalRents : (occupiedUnits > 0 ? 1 : 0);
+  const collection     = Math.round(collectionRate * 40);
 
   // --- Lease health (0–20) ---
   const today   = new Date();

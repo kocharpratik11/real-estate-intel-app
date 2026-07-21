@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { listProperties, getPortfolioSummary, getPropertyMetrics } from '@/lib/api/properties';
+import { getPropertyHealthScore } from '@/lib/api/healthScore';
 import { PropertyRow, PropertyRowData } from '@/components/portfolio/PropertyRow';
 import { Colors, Gradients } from '@/constants/colors';
 import { hapticLight } from '@/lib/haptics';
@@ -17,9 +18,11 @@ const NOW  = new Date();
 const YEAR = NOW.getFullYear();
 const MON  = NOW.getMonth() + 1;
 
-function toHealth(pct: number, cf: number): PropertyRowData['health'] {
-  if (cf < 0 || pct < 60) return 'critical';
-  if (pct < 80) return 'warning';
+// Matches the color bands ScoreChip already uses, so the card's left accent border
+// always agrees with its score chip color.
+function toHealth(score: number): PropertyRowData['health'] {
+  if (score < 60) return 'critical';
+  if (score < 80) return 'warning';
   return 'healthy';
 }
 
@@ -64,26 +67,20 @@ export default function PortfolioScreen() {
 
     const propIds = props.map(p => p.id);
 
-    // Fetch rent payments, all units, active leases, and per-property cash flow in parallel.
-    // Cash flow comes from get_property_metrics_v2 (via getPropertyMetrics) — the same
-    // NOI-minus-debt-service source the property detail screen uses — rather than being
-    // recomputed locally, so the two screens can't drift out of sync.
-    const [rentsRes, allUnitsRes, metricsResults] = await Promise.all([
-      supabase
-        .from('rent_payments')
-        .select('property_id, amount_due, amount_paid, status')
-        .in('property_id', propIds)
-        .eq('period_year', YEAR)
-        .eq('period_month', MON)
-        .eq('charge_type', 'rent'),
+    // Fetch rent payments, all units, active leases, per-property cash flow, and per-property
+    // health score in parallel. Cash flow comes from get_property_metrics_v2 (via
+    // getPropertyMetrics) and the health score/collection rate come from
+    // getPropertyHealthScore — the exact same sources the property detail screen uses,
+    // rather than being recomputed locally, so the two screens can't drift out of sync.
+    const [allUnitsRes, metricsResults, healthResults] = await Promise.all([
       supabase
         .from('units')
         .select('id, property_id')
         .in('property_id', propIds),
       Promise.all(propIds.map(id => getPropertyMetrics(id, YEAR, MON).catch(() => null))),
+      Promise.all(propIds.map(id => getPropertyHealthScore(id, YEAR, MON).catch(() => null))),
     ]);
 
-    const rents    = rentsRes.data ?? [];
     const allUnits = (allUnitsRes.data ?? []) as { id: string; property_id: string }[];
     const allUnitIds = allUnits.map(u => u.id);
     const cashFlowByProp = new Map<string, number>(
@@ -91,6 +88,7 @@ export default function PortfolioScreen() {
         .filter((m): m is NonNullable<typeof m> => m != null)
         .map(m => [m.property_id, m.monthly_cash_flow])
     );
+    const healthByProp = new Map(propIds.map((id, i) => [id, healthResults[i]]));
 
     // Fetch active leases for occupancy
     const { data: activeLeases } = allUnitIds.length > 0
@@ -98,16 +96,6 @@ export default function PortfolioScreen() {
       : { data: [] as { unit_id: string }[] };
 
     // Build per-property maps
-    const rentByProp = new Map<string, { due: number; paid: number; count: number; paidCount: number }>();
-    for (const r of rents) {
-      const cur = rentByProp.get(r.property_id) ?? { due: 0, paid: 0, count: 0, paidCount: 0 };
-      cur.due       += r.amount_due ?? 0;
-      cur.paid      += r.amount_paid ?? 0;
-      cur.count     += 1;
-      cur.paidCount += r.status === 'paid' ? 1 : 0;
-      rentByProp.set(r.property_id, cur);
-    }
-
     const unitToProp = new Map(allUnits.map(u => [u.id, u.property_id]));
     const occupiedByProp = new Map<string, number>();
     for (const l of activeLeases ?? []) {
@@ -120,17 +108,27 @@ export default function PortfolioScreen() {
     }
 
     const rows: PropertyRowData[] = props.map(p => {
-      const r           = rentByProp.get(p.id) ?? { due: 0, paid: 0, count: 0, paidCount: 0 };
-      // No rent charges due this month (vacant / lease not yet started) reads as fully healthy, not 0%.
-      const pct         = r.count > 0 ? r.paidCount / r.count : 1;
       const cf          = cashFlowByProp.get(p.id) ?? 0;
-      const h           = toHealth(pct * 100, cf);
+      const hs          = healthByProp.get(p.id);
       const totalUnits  = totalUnitsByProp.get(p.id) ?? p.unit_count;
       const occupied    = occupiedByProp.get(p.id) ?? 0;
-      const occupancy   = totalUnits > 0 ? occupied / totalUnits : 1;
-      // 2-axis health score: collection 60pts + occupancy 40pts
-      const healthScore = Math.round(pct * 60 + occupancy * 40);
-      return { ...p, unit_count: totalUnits, cashFlow: cf, collectionRate: pct, health: h, badgeLabel: toBadge(h, cf), healthScore };
+      const vacantUnits = Math.max(totalUnits - occupied, 0);
+      // Collection rate and score come from getPropertyHealthScore — the same source the
+      // property detail screen uses — so a vacant/at-risk property reads consistently in
+      // both places instead of the list showing its own rosier local estimate.
+      const pct         = hs?.detail.collectionRate ?? 1;
+      const healthScore = hs?.score ?? 0;
+      const h           = toHealth(healthScore);
+      return {
+        ...p,
+        unit_count:     totalUnits,
+        cashFlow:       cf,
+        collectionRate: pct,
+        vacancies:      vacantUnits,
+        health:         h,
+        badgeLabel:     toBadge(h, cf),
+        healthScore,
+      };
     });
 
     rows.sort((a, b) => ({ critical: 0, warning: 1, healthy: 2 }[a.health] - { critical: 0, warning: 1, healthy: 2 }[b.health]));
