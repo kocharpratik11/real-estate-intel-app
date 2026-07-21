@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, RefreshControl, Alert,
@@ -13,6 +13,7 @@ import { Colors, Gradients } from '@/constants/colors';
 import type { LedgerEvent, RentPayment, PaymentStatus } from '@/types';
 
 type Filter = 'all' | 'paid' | 'overdue' | 'partial' | 'vacant';
+const UNIT_ALL = 'all';
 
 const NOW   = new Date();
 const YEAR  = NOW.getFullYear();
@@ -24,9 +25,9 @@ const fmtAmt = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDig
 export default function RentLedgerScreen() {
   const { id, initialFilter } = useLocalSearchParams<{ id: string; initialFilter?: string }>();
   const insets = useSafeAreaInsets();
-  const [payments,   setPayments]   = useState<RentPayment[]>([]);
-  const [events,     setEvents]     = useState<LedgerEvent[]>([]);
+  const [allPayments, setAllPayments] = useState<RentPayment[]>([]);
   const [filter,     setFilter]     = useState<Filter>((initialFilter as Filter) ?? 'all');
+  const [unitId,     setUnitId]     = useState<string>(UNIT_ALL);
   const [year,       setYear]       = useState(YEAR);
   const [month,      setMonth]      = useState(MONTH);
   const [loading,    setLoading]    = useState(true);
@@ -36,23 +37,42 @@ export default function RentLedgerScreen() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    const data = await getRentPayments(id, year).catch(() => []);
-    setPayments(data);
-    setEvents(buildLedger(data));
+    // Fetch the full history once — switching between "this month, all units" and
+    // "all time, one unit" is then just client-side filtering, no re-fetch needed.
+    const data = await getRentPayments(id).catch(() => []);
+    setAllPayments(data);
     setLoading(false);
-  }, [id, year]);
+  }, [id]);
 
   useEffect(() => { load(); }, [load]);
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
-  // Summary for current month
-  const monthPayments = payments.filter(p =>
-    p.period_year === year && p.period_month === month && p.charge_type === 'rent'
-  );
-  const totalDue   = monthPayments.reduce((s, p) => s + p.amount_due, 0);
-  const totalPaid  = monthPayments.reduce((s, p) => s + (p.amount_paid ?? 0), 0);
-  const paidCount  = monthPayments.filter(p => p.status === 'paid').length;
-  const totalCount = monthPayments.length;
+  const unitOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const p of allPayments) {
+      if (p.units?.id && !seen.has(p.units.id)) seen.set(p.units.id, p.units.label);
+    }
+    return Array.from(seen, ([value, label]) => ({ value, label }));
+  }, [allPayments]);
+
+  const isSingleUnit = unitId !== UNIT_ALL;
+
+  // "All units" stays scoped to the selected month/year (unchanged behavior).
+  // Picking one unit switches to that unit's complete history, all months.
+  const payments = isSingleUnit
+    ? allPayments.filter(p => p.unit_id === unitId)
+    : allPayments.filter(p => p.period_year === year);
+
+  const events = buildLedger(payments);
+
+  // Summary: current month for "all units", all-time for a single unit.
+  const summaryPayments = isSingleUnit
+    ? payments.filter(p => p.charge_type === 'rent')
+    : payments.filter(p => p.period_year === year && p.period_month === month && p.charge_type === 'rent');
+  const totalDue   = summaryPayments.reduce((s, p) => s + p.amount_due, 0);
+  const totalPaid  = summaryPayments.reduce((s, p) => s + (p.amount_paid ?? 0), 0);
+  const paidCount  = summaryPayments.filter(p => p.status === 'paid').length;
+  const totalCount = summaryPayments.length;
   const pct        = totalDue > 0 ? totalPaid / totalDue : 0;
 
   const STATUS_MAP: Record<Filter, PaymentStatus | null> = {
@@ -97,16 +117,49 @@ export default function RentLedgerScreen() {
 
       {/* Scrollable content */}
       <View style={styles.body}>
-        {/* Month selector */}
-        <View style={styles.monthNav}>
-          <TouchableOpacity onPress={prevMonth} hitSlop={12}>
-            <Text style={styles.navArrow}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.monthLabel}>{MONTHS[month - 1]} {year}</Text>
-          <TouchableOpacity onPress={nextMonth} hitSlop={12}>
-            <Text style={styles.navArrow}>›</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Unit selector */}
+        {unitOptions.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterRow}
+            contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingVertical: 8 }}
+          >
+            <TouchableOpacity
+              onPress={() => setUnitId(UNIT_ALL)}
+              style={[styles.chip, unitId === UNIT_ALL && styles.chipActive]}
+            >
+              <Text style={[styles.chipLabel, unitId === UNIT_ALL && styles.chipLabelActive]}>
+                All Units
+              </Text>
+            </TouchableOpacity>
+            {unitOptions.map(u => (
+              <TouchableOpacity
+                key={u.value}
+                onPress={() => setUnitId(u.value)}
+                style={[styles.chip, unitId === u.value && styles.chipActive]}
+              >
+                <Text style={[styles.chipLabel, unitId === u.value && styles.chipLabelActive]}>
+                  {u.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* Month selector — only meaningful for the combined "all units" view;
+            a single unit shows its complete history across all months. */}
+        {!isSingleUnit && (
+          <View style={styles.monthNav}>
+            <TouchableOpacity onPress={prevMonth} hitSlop={12}>
+              <Text style={styles.navArrow}>‹</Text>
+            </TouchableOpacity>
+            <Text style={styles.monthLabel}>{MONTHS[month - 1]} {year}</Text>
+            <TouchableOpacity onPress={nextMonth} hitSlop={12}>
+              <Text style={styles.navArrow}>›</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Summary bar */}
         <View style={styles.summaryCard}>
@@ -114,7 +167,10 @@ export default function RentLedgerScreen() {
             <Text style={styles.summaryAmount}>{fmtAmt(totalPaid)}</Text>
             <Text style={styles.summaryOf}>/ {fmtAmt(totalDue)}</Text>
           </View>
-          <Text style={styles.summarySub}>collected  •  {paidCount} of {totalCount} units paid</Text>
+          <Text style={styles.summarySub}>
+            collected  •  {paidCount} of {totalCount} {isSingleUnit ? 'charges' : 'units'} paid
+            {isSingleUnit ? '  •  all time' : ''}
+          </Text>
           <View style={styles.barTrack}>
             <View style={[styles.barFill, {
               width: `${Math.round(pct * 100)}%` as any,
@@ -160,7 +216,7 @@ export default function RentLedgerScreen() {
                     event={e}
                     onPress={() => {
                       if (e.type !== 'charge' || e.sourcePayment.status === 'paid') return;
-                      const unitId = e.sourcePayment.units?.id;
+                      const tappedUnitId = e.sourcePayment.units?.id;
                       Alert.alert(
                         e.sourcePayment.units?.label ?? 'Overdue Payment',
                         `$${e.sourcePayment.amount_due.toLocaleString()} due`,
@@ -168,10 +224,10 @@ export default function RentLedgerScreen() {
                           {
                             text: 'Contact Tenant',
                             onPress: () => {
-                              if (unitId) {
+                              if (tappedUnitId) {
                                 router.push({
                                   pathname: '/(app)/portfolio/[id]/unit/[unitId]',
-                                  params: { id: id!, unitId },
+                                  params: { id: id!, unitId: tappedUnitId },
                                 });
                               }
                             },
