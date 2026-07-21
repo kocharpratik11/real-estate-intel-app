@@ -155,7 +155,7 @@ export default function HomeScreen() {
     if (propIds.length > 0) {
       const { data } = await supabase
         .from('rent_payments')
-        .select('id, paid_date, amount_paid, status, units(label), properties(name)')
+        .select('id, property_id, paid_date, amount_paid, status, units(label), properties(name)')
         .in('property_id', propIds)
         .not('paid_date', 'is', null)
         .order('paid_date', { ascending: false })
@@ -169,8 +169,8 @@ export default function HomeScreen() {
           subtitle:  `${r.units?.label ?? 'Unit'}  •  ${r.properties?.name ?? ''}  •  $${r.amount_paid?.toLocaleString()}`,
           time:      r.paid_date ? new Date(r.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '',
           rawDate:   r.paid_date ? (r.paid_date as string).slice(0, 10) : '',
-          timeColor: Colors.green,
-          onPress:   () => {},
+          timeColor: r.status === 'paid' ? Colors.green : Colors.yellow,
+          onPress:   () => router.push({ pathname: '/(app)/portfolio/[id]/rent', params: { id: r.property_id } }),
         }))
       );
     }
@@ -275,7 +275,7 @@ export default function HomeScreen() {
 
         {/* Recent Activity */}
         {visibleActivity.length > 0 && (
-          <RecentActivity items={visibleActivity} onSeeAll={() => router.push('/(app)/portfolio')} />
+          <RecentActivity items={visibleActivity} onSeeAll={() => router.push('/(app)/activity')} />
         )}
 
         <View style={{ height: insets.bottom + 40 }} />
