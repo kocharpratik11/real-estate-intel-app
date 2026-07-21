@@ -1,9 +1,9 @@
-import { ScrollView, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { ScrollView, View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { computeMortgageBalance } from '@/lib/utils/mortgage';
 
@@ -22,8 +22,21 @@ type Loan = {
   effectiveBalance: number;
 };
 
+function Header() {
+  const insets = useSafeAreaInsets();
+  return (
+    <LinearGradient colors={Gradients.primary} style={[styles.hero, { paddingTop: insets.top + 8 }]}>
+      <TouchableOpacity onPress={() => router.back()}>
+        <Text style={styles.back}>‹ Property</Text>
+      </TouchableOpacity>
+      <Text style={styles.title}>Equity & Financing</Text>
+    </LinearGradient>
+  );
+}
+
 export default function EquityScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
   const [property, setProperty] = useState<any>(null);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,13 +69,22 @@ export default function EquityScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
-        <ActivityIndicator color={Colors.blue} />
-      </SafeAreaView>
+      <View style={styles.container}>
+        <Header />
+        <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
+          <ActivityIndicator color={Colors.blue} />
+        </View>
+      </View>
     );
   }
 
-  if (!property) return null;
+  if (!property) {
+    return (
+      <View style={styles.container}>
+        <Header />
+      </View>
+    );
+  }
 
   const currentValue = property.current_market_value ?? 0;
   const totalDebt = loans.reduce((sum, l) => sum + l.effectiveBalance, 0);
@@ -71,7 +93,8 @@ export default function EquityScreen() {
   const equityPct = 100 - ltv;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <Header />
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Summary Cards */}
         <View style={styles.grid}>
@@ -141,9 +164,9 @@ export default function EquityScreen() {
             ))
           )}
         </View>
-        <View style={{ height: 40 }} />
+        <View style={{ height: insets.bottom + 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -174,6 +197,13 @@ function formatCurrency(amount: number): string {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
+  hero: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    gap: 4,
+  },
+  back:  { color: 'rgba(255,255,255,0.8)', fontSize: 13 },
+  title: { color: '#FFFFFF', fontSize: 22, fontWeight: '700' },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

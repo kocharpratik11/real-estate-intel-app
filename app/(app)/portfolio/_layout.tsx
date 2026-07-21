@@ -8,6 +8,9 @@ export default function PortfolioLayout() {
       <Stack.Screen name="add" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="[id]/index" />
       <Stack.Screen name="[id]/rent" />
+      <Stack.Screen name="[id]/equity" />
+      <Stack.Screen name="[id]/expenses" />
+      <Stack.Screen name="[id]/documents" />
       <Stack.Screen name="[id]/unit/[unitId]/index" />
     </Stack>
   );

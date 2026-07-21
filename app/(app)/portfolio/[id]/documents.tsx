@@ -1,12 +1,25 @@
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
+import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
-import { Colors } from '@/constants/colors';
+import { Colors, Gradients } from '@/constants/colors';
+
+function Header() {
+  const insets = useSafeAreaInsets();
+  return (
+    <LinearGradient colors={Gradients.primary} style={[styles.hero, { paddingTop: insets.top + 8 }]}>
+      <TouchableOpacity onPress={() => router.back()}>
+        <Text style={styles.back}>‹ Property</Text>
+      </TouchableOpacity>
+      <Text style={styles.title}>Documents</Text>
+    </LinearGradient>
+  );
+}
 
 const DOCUMENTS_BUCKET = 'documents';
 
@@ -20,6 +33,7 @@ type Doc = {
 
 export default function DocumentsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
   const [documents, setDocuments] = useState<Doc[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -53,14 +67,21 @@ export default function DocumentsScreen() {
     return 'document';
   };
 
-  if (loading) return <SafeAreaView style={styles.container} />;
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Header />
+      </View>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <Header />
       <FlatList
         data={documents}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 40 }]}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="document-outline" size={48} color={Colors.textMuted} />
@@ -95,12 +116,19 @@ export default function DocumentsScreen() {
           </TouchableOpacity>
         )}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
+  hero: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    gap: 4,
+  },
+  back:  { color: 'rgba(255,255,255,0.8)', fontSize: 13 },
+  title: { color: '#FFFFFF', fontSize: 22, fontWeight: '700' },
   list: { padding: 16 },
   empty: { alignItems: 'center', paddingTop: 80, gap: 12 },
   emptyText: {
