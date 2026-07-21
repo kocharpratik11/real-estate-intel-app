@@ -240,6 +240,7 @@ export default function RentLedgerScreen() {
                         ]
                       );
                     }}
+                    onRecordPayment={() => { setSelected(e.sourcePayment); setShowSheet(true); }}
                   />
                 ))
             }

@@ -19,7 +19,6 @@ import { NewTicketSheet } from '@/components/maintenance/NewTicketSheet';
 import { CollectionBarChart, type MonthlyCollection } from '@/components/charts/CollectionBarChart';
 import { PLBarChart } from '@/components/charts/PLBarChart';
 import { getPLSummary, type MonthlyPL } from '@/lib/api/financials';
-import { EXPENSE_CATEGORIES } from '@/lib/api/expenses';
 import { MAINTENANCE_CATEGORIES } from '@/lib/api/maintenance';
 import type { Lease, Expense, MaintenanceEvent } from '@/types';
 import type { HealthScoreResult } from '@/lib/api/healthScore';
@@ -392,34 +391,20 @@ export default function PropertyDetailScreen() {
             {plData.length > 0 && (
               <PLBarChart data={plData} title="6-MONTH P&L" />
             )}
-            {expenses.length === 0 ? (
-              <TouchableOpacity style={styles.emptyState} onPress={() => setShowExpense(true)} activeOpacity={0.8}>
-                <Text style={styles.emptyIcon}>🧾</Text>
-                <Text style={styles.emptyTitle}>No expenses yet</Text>
-                <Text style={styles.emptySub}>Tap to log your first expense</Text>
-              </TouchableOpacity>
-            ) : (
-              expenses.map(e => (
-                <View key={e.id} style={styles.expenseRow}>
-                  <View style={styles.expenseDateCol}>
-                    <Text style={styles.expenseMonth}>
-                      {new Date(e.expense_date).toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
-                    </Text>
-                    <Text style={styles.expenseDay}>
-                      {new Date(e.expense_date).getDate()}
-                    </Text>
-                  </View>
-                  <View style={styles.expenseInfo}>
-                    <Text style={styles.expenseCategory}>
-                    {EXPENSE_CATEGORIES.find(c => c.value === e.category)?.label ?? e.category?.replace(/_/g, ' ')}
-                  </Text>
-                    {e.description && <Text style={styles.expenseDesc} numberOfLines={1}>{e.description}</Text>}
-                    {e.vendor && <Text style={styles.expenseVendor}>{e.vendor}</Text>}
-                  </View>
-                  <Text style={styles.expenseAmount}>{fmt(e.amount)}</Text>
-                </View>
-              ))
-            )}
+            <TouchableOpacity
+              style={styles.ctaRow}
+              onPress={() => router.push({ pathname: '/(app)/portfolio/[id]/expenses', params: { id } })}
+              activeOpacity={0.8}
+            >
+              <View style={styles.ctaIcon}>
+                <Text style={styles.ctaIconText}>🧾</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.ctaTitle}>View Expense Ledger</Text>
+                <Text style={styles.ctaSub}>Full history by category & month</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -695,27 +680,6 @@ const styles = StyleSheet.create({
   ctaIconText: { fontSize: 18 },
   ctaTitle:    { color: Colors.text, fontSize: 15, fontWeight: '600' },
   ctaSub:      { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
-
-  // Expenses
-  expenseRow: {
-    flexDirection:   'row',
-    alignItems:      'flex-start',
-    backgroundColor: Colors.card,
-    borderRadius:    12,
-    borderWidth:     1,
-    borderColor:     Colors.border,
-    padding:         14,
-    marginBottom:    8,
-    gap:             12,
-  },
-  expenseDateCol: { alignItems: 'center', minWidth: 32 },
-  expenseMonth:   { color: Colors.indigo, fontSize: 8, fontWeight: '700', letterSpacing: 0.5 },
-  expenseDay:     { color: Colors.text, fontSize: 18, fontWeight: '700', lineHeight: 22 },
-  expenseInfo:    { flex: 1, gap: 2 },
-  expenseCategory:{ color: Colors.text, fontSize: 13, fontWeight: '600', textTransform: 'capitalize' },
-  expenseDesc:    { color: Colors.textMuted, fontSize: 11 },
-  expenseVendor:  { color: Colors.textMuted, fontSize: 10 },
-  expenseAmount:  { color: Colors.text, fontSize: 15, fontWeight: '700', flexShrink: 0 },
 
   // Maintenance
   maintenanceRow: {

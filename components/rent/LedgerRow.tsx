@@ -4,8 +4,9 @@ import { Badge } from '@/components/ui/Badge';
 import type { LedgerEvent, PaymentStatus } from '@/types';
 
 type Props = {
-  event:   LedgerEvent;
-  onPress: () => void;
+  event:            LedgerEvent;
+  onPress:          () => void;
+  onRecordPayment?: () => void;
 };
 
 const STATUS_BADGE: Record<PaymentStatus, 'paid' | 'overdue' | 'partial' | 'pending' | 'vacant'> = {
@@ -23,10 +24,11 @@ const fmtDate = (d: string) => {
 
 const fmtAmt = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
-export function LedgerRow({ event: e, onPress }: Props) {
-  const isCharge  = e.type === 'charge';
-  const amtColor  = e.isCredit ? Colors.blue : isCharge ? Colors.red : Colors.green;
-  const amtPrefix = e.isCredit ? '−' : isCharge ? '+' : '−';
+export function LedgerRow({ event: e, onPress, onRecordPayment }: Props) {
+  const isCharge     = e.type === 'charge';
+  const amtColor     = e.isCredit ? Colors.blue : isCharge ? Colors.red : Colors.green;
+  const amtPrefix    = e.isCredit ? '−' : isCharge ? '+' : '−';
+  const canRecord    = isCharge && e.status !== 'paid' && !!onRecordPayment;
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
@@ -53,9 +55,19 @@ export function LedgerRow({ event: e, onPress }: Props) {
           {e.sourcePayment.units?.label && (
             <Text style={styles.unit}>{e.sourcePayment.units.label}</Text>
           )}
+
+          {canRecord && (
+            <TouchableOpacity
+              onPress={onRecordPayment}
+              style={styles.recordBtn}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.recordBtnLabel}>Record Payment</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        <Text style={styles.chevron}>›</Text>
+        {!canRecord && <Text style={styles.chevron}>›</Text>}
       </View>
     </TouchableOpacity>
   );
@@ -117,6 +129,14 @@ const styles = StyleSheet.create({
     color:    Colors.textMuted,
     fontSize: 10,
   },
+  recordBtn: {
+    backgroundColor:   Colors.blue,
+    borderRadius:      8,
+    paddingVertical:   8,
+    alignItems:        'center',
+    marginTop:         4,
+  },
+  recordBtnLabel: { color: Colors.white, fontSize: 12, fontWeight: '700' },
   chevron: {
     color:       Colors.textMuted,
     fontSize:    18,
