@@ -59,18 +59,6 @@ async function countVacancies(unitIds: string[]): Promise<number> {
   return unitIds.filter(id => !occupied.has(id)).length;
 }
 
-async function sumExpenses(propertyIds: string[], year: number, month: number): Promise<number> {
-  const start = `${year}-${String(month).padStart(2, '0')}-01`;
-  const end   = `${year}-${String(month).padStart(2, '0')}-31`;
-  const { data } = await supabase
-    .from('expenses')
-    .select('amount')
-    .in('property_id', propertyIds)
-    .gte('expense_date', start)
-    .lte('expense_date', end);
-  return (data ?? []).reduce((s: number, e: any) => s + (e.amount ?? 0), 0);
-}
-
 /**
  * Lightweight metrics for a single property for a given month.
  *
@@ -145,8 +133,10 @@ export async function getPortfolioSummary(
     };
   }
 
-  // 2. Parallel: rent payments + all units + expenses
-  const [rentRes, unitRes, totalExpenses] = await Promise.all([
+  // 2. Parallel: rent payments + all units + per-property cash flow (same
+  // get_property_metrics_v2 source the portfolio list and property detail
+  // screens use, so this can't drift out of sync with them)
+  const [rentRes, unitRes, metricsResults] = await Promise.all([
     supabase
       .from('rent_payments')
       .select('amount_due, amount_paid, status')
@@ -158,7 +148,7 @@ export async function getPortfolioSummary(
       .from('units')
       .select('id')
       .in('property_id', propIds),
-    sumExpenses(propIds, year, month).catch(() => 0),
+    Promise.all(propIds.map(id => getPropertyMetrics(id, year, month).catch(() => null))),
   ]);
 
   const rents    = rentRes.data ?? [];
@@ -174,14 +164,21 @@ export async function getPortfolioSummary(
   // Health score: 60pts collection + 40pts occupancy
   const healthScore = Math.round(collectionRate * 60 + (1 - vacancyRate) * 40);
 
+  // Net cash flow (NOI - debt service), summed from the same RPC-backed figure used
+  // elsewhere — not gross rent minus manually-logged expenses, which ignored the
+  // mortgage entirely and overstated profitability.
+  const cashFlow = metricsResults
+    .filter((m): m is NonNullable<typeof m> => m != null)
+    .reduce((s, m) => s + m.monthly_cash_flow, 0);
+
   return {
     total_properties:     propIds.length,
     total_value:          totalValue,
-    monthly_cash_flow:    collected,
+    monthly_cash_flow:    cashFlow,
     collection_rate:      collectionRate,
     monthly_collected:    collected,
     monthly_expected:     expected,
-    net_income:           collected - totalExpenses,
+    net_income:           cashFlow,
     vacancies,
     longest_vacancy_days: 0,          // requires vacancy-start tracking
     health_score:         healthScore,

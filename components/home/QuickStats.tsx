@@ -7,8 +7,11 @@ type Props = {
   onPress?: () => void;
 };
 
-const fmt = (n: number) =>
-  n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n.toLocaleString()}`;
+const fmt = (n: number) => {
+  const sign = n < 0 ? '-' : '';
+  const abs  = Math.abs(n);
+  return abs >= 1000 ? `${sign}$${(abs / 1000).toFixed(1)}k` : `${sign}$${abs.toLocaleString()}`;
+};
 
 export function QuickStats({ summary, onPress }: Props) {
   const pct = Math.round(summary.collection_rate * 100);
@@ -30,7 +33,9 @@ export function QuickStats({ summary, onPress }: Props) {
         <View style={styles.divider} />
 
         <View style={styles.stat}>
-          <Text style={styles.value}>{fmt(summary.net_income || summary.monthly_collected)}</Text>
+          <Text style={[styles.value, { color: summary.net_income < 0 ? Colors.red : Colors.text }]}>
+            {fmt(summary.net_income)}
+          </Text>
           <Text style={styles.label}>net income</Text>
         </View>
 
