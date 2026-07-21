@@ -86,7 +86,7 @@ export function PropertyRow({ property: p, onPress }: Props) {
         <View style={styles.bottomRow}>
           <Text style={styles.pct}>{pct}% collected</Text>
           <Text style={[styles.cf, { color: cfColor }]}>
-            {p.cashFlow >= 0 ? '↑' : '↓'} ${Math.abs(p.cashFlow).toLocaleString()}/mo
+            {p.cashFlow >= 0 ? '↑' : '↓'} ${Math.round(Math.abs(p.cashFlow)).toLocaleString()}/mo
           </Text>
         </View>
 

@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { listProperties, getPortfolioSummary } from '@/lib/api/properties';
+import { listProperties, getPortfolioSummary, getPropertyMetrics } from '@/lib/api/properties';
 import { PropertyRow, PropertyRowData } from '@/components/portfolio/PropertyRow';
 import { Colors, Gradients } from '@/constants/colors';
 import { hapticLight } from '@/lib/haptics';
@@ -32,7 +32,7 @@ function toBadge(h: PropertyRowData['health'], cf: number): string {
 const fmtValue = (n: number) => {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000)     return `$${(n / 1_000).toFixed(0)}k`;
-  return `$${n}`;
+  return `$${Math.round(n).toLocaleString()}`;
 };
 
 export default function PortfolioScreen() {
@@ -64,8 +64,11 @@ export default function PortfolioScreen() {
 
     const propIds = props.map(p => p.id);
 
-    // Fetch rent payments, all units, and active leases in parallel
-    const [rentsRes, allUnitsRes] = await Promise.all([
+    // Fetch rent payments, all units, active leases, and per-property cash flow in parallel.
+    // Cash flow comes from get_property_metrics_v2 (via getPropertyMetrics) — the same
+    // NOI-minus-debt-service source the property detail screen uses — rather than being
+    // recomputed locally, so the two screens can't drift out of sync.
+    const [rentsRes, allUnitsRes, metricsResults] = await Promise.all([
       supabase
         .from('rent_payments')
         .select('property_id, amount_due, amount_paid, status')
@@ -77,11 +80,17 @@ export default function PortfolioScreen() {
         .from('units')
         .select('id, property_id')
         .in('property_id', propIds),
+      Promise.all(propIds.map(id => getPropertyMetrics(id, YEAR, MON).catch(() => null))),
     ]);
 
     const rents    = rentsRes.data ?? [];
     const allUnits = (allUnitsRes.data ?? []) as { id: string; property_id: string }[];
     const allUnitIds = allUnits.map(u => u.id);
+    const cashFlowByProp = new Map<string, number>(
+      metricsResults
+        .filter((m): m is NonNullable<typeof m> => m != null)
+        .map(m => [m.property_id, m.monthly_cash_flow])
+    );
 
     // Fetch active leases for occupancy
     const { data: activeLeases } = allUnitIds.length > 0
@@ -114,9 +123,7 @@ export default function PortfolioScreen() {
       const r           = rentByProp.get(p.id) ?? { due: 0, paid: 0, count: 0, paidCount: 0 };
       // No rent charges due this month (vacant / lease not yet started) reads as fully healthy, not 0%.
       const pct         = r.count > 0 ? r.paidCount / r.count : 1;
-      // Net cash flow (NOI - debt service), matching the same formula the property detail
-      // screen gets from get_property_metrics_v2 — not gross rent collected.
-      const cf          = (p.annual_noi ?? 0) / 12 - (p.monthly_debt_service ?? 0);
+      const cf          = cashFlowByProp.get(p.id) ?? 0;
       const h           = toHealth(pct * 100, cf);
       const totalUnits  = totalUnitsByProp.get(p.id) ?? p.unit_count;
       const occupied    = occupiedByProp.get(p.id) ?? 0;
