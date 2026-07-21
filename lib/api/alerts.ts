@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { listProperties } from './properties';
+import { listProperties, getPropertyMetrics } from './properties';
 import type { AppAlert } from '@/types';
 
 export async function generateAlerts(
@@ -26,6 +26,7 @@ export async function generateAlerts(
     maintRes,
     thisMonthPayRes,
     vacantRes,
+    metricsResults,
   ] = await Promise.all([
     // 1. Overdue rent payments this month
     supabase
@@ -66,6 +67,9 @@ export async function generateAlerts(
       .select('id, property_id, label, vacancy_started_at')
       .in('property_id', propIds)
       .not('vacancy_started_at', 'is', null),
+
+    // 6. Per-property cash flow (NOI - debt service), same source as the portfolio list
+    Promise.all(propIds.map(id => getPropertyMetrics(id, year, month).catch(() => null))),
   ]);
 
   const overdueRows   = overdueRes.data   ?? [];
@@ -209,6 +213,27 @@ export async function generateAlerts(
       routeParams: { id: pid },
     });
   }
+
+  // ── 6. Negative cash flow ─────────────────────────────────────────
+  // Independent of vacancy tracking — a property losing money shows up here
+  // whether or not vacancy_started_at is set for its units.
+  propIds.forEach((pid, i) => {
+    const m = metricsResults[i];
+    if (!m || m.monthly_cash_flow >= 0) return;
+    const propName = propMap.get(pid) ?? 'Portfolio';
+    const monthlyLoss = Math.abs(m.monthly_cash_flow);
+    alerts.push({
+      id:          `negative-cf-${pid}`,
+      severity:    'emergency',
+      title:       `Losing $${Math.round(monthlyLoss).toLocaleString()}/mo`,
+      body:        `Cash flow is negative after debt service — $${Math.round(monthlyLoss * 12).toLocaleString()}/yr if unaddressed.`,
+      action:      'View Property →',
+      property:    propName,
+      time:        'This month',
+      route:       '/(app)/portfolio/[id]',
+      routeParams: { id: pid },
+    });
+  });
 
   return alerts;
 }
