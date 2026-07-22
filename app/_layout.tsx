@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -8,7 +9,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { supabase } from '@/lib/supabase';
 import { Colors } from '@/constants/colors';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { initSentry, Sentry } from '@/lib/sentry';
 import LockedScreen from './locked';
+
+// Initialize as early as possible so startup crashes are captured too.
+initSentry();
 
 SplashScreen.preventAutoHideAsync();
 
@@ -101,8 +106,32 @@ function RootLayoutInner() {
   );
 }
 
+function CrashFallback({ resetError }: { resetError: () => void }) {
+  return (
+    <View style={crashStyles.root}>
+      <Text style={crashStyles.icon}>⚠️</Text>
+      <Text style={crashStyles.title}>Something went wrong</Text>
+      <Text style={crashStyles.body}>
+        Asset Brain hit an unexpected error. It's been reported automatically — try again below.
+      </Text>
+      <TouchableOpacity style={crashStyles.btn} onPress={resetError} activeOpacity={0.85}>
+        <Text style={crashStyles.btnLabel}>Try Again</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const crashStyles = StyleSheet.create({
+  root:  { flex: 1, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
+  icon:  { fontSize: 40 },
+  title: { color: Colors.text, fontSize: 18, fontWeight: '700' },
+  body:  { color: Colors.textMuted, fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  btn:   { backgroundColor: Colors.indigo, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 12, marginTop: 12 },
+  btnLabel: { color: Colors.white, fontSize: 14, fontWeight: '700' },
+});
+
 // ── Root layout — wraps everything in AuthProvider ────────────────────────────
-export default function RootLayout() {
+function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.bg }}>
       <StatusBar style="light" backgroundColor={Colors.bg} />
@@ -112,3 +141,13 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+function RootLayoutWithErrorBoundary() {
+  return (
+    <Sentry.ErrorBoundary fallback={CrashFallback}>
+      <RootLayout />
+    </Sentry.ErrorBoundary>
+  );
+}
+
+export default Sentry.wrap(RootLayoutWithErrorBoundary);
