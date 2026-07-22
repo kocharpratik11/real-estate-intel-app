@@ -9,12 +9,18 @@
       "distribution": "internal",
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_SENTRY_DSN": "https://bb4e239de6e315bd5501b99877a0df8b@o4511780443848704.ingest.us.sentry.io/4511780449681408"
       }
     },
     "preview": {
       "channel": "preview",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SENTRY_DSN": "https://bb4e239de6e315bd5501b99877a0df8b@o4511780443848704.ingest.us.sentry.io/4511780449681408"
       }
     },
     "production": {
@@ -23,7 +29,10 @@
       "android": {
         "buildType": "app-bundle"
       },
-      "ios": {}
+      "ios": {},
+      "env": {
+        "EXPO_PUBLIC_SENTRY_DSN": "https://bb4e239de6e315bd5501b99877a0df8b@o4511780443848704.ingest.us.sentry.io/4511780449681408"
+      }
     }
   },
   "submit": {
