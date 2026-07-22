@@ -20,6 +20,7 @@ import { CollectionBarChart, type MonthlyCollection } from '@/components/charts/
 import { PLBarChart } from '@/components/charts/PLBarChart';
 import { getPLSummary, type MonthlyPL } from '@/lib/api/financials';
 import { MAINTENANCE_CATEGORIES } from '@/lib/api/maintenance';
+import { PrimaryResidenceDetail } from '@/components/property/PrimaryResidenceDetail';
 import type { Lease, Expense, MaintenanceEvent } from '@/types';
 import type { HealthScoreResult } from '@/lib/api/healthScore';
 
@@ -189,6 +190,33 @@ export default function PropertyDetailScreen() {
     return (
       <View style={styles.root}>
         <Text style={styles.errorText}>Property not found</Text>
+      </View>
+    );
+  }
+
+  // Primary residences get a completely different view — no units/rent/health
+  // score, just equity/mortgage/payoff info. Matches the web app's split.
+  if (property.is_primary_residence) {
+    return (
+      <View style={[styles.root, { backgroundColor: Colors.indigo }]}>
+        <LinearGradient colors={Gradients.primary} style={[styles.hero, { paddingTop: insets.top + 4 }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Text style={styles.backLabel}>‹ Portfolio</Text>
+          </TouchableOpacity>
+          <Text style={styles.heroName} numberOfLines={1}>{property.name}</Text>
+          <Text style={styles.heroAddr}>{property.address_line1}, {property.city}, {property.state}</Text>
+          <View style={styles.primaryPill}>
+            <Text style={styles.primaryPillText}>PRIMARY RESIDENCE</Text>
+          </View>
+        </LinearGradient>
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.indigo} />}
+          contentContainerStyle={{ paddingBottom: 80 }}
+        >
+          <PrimaryResidenceDetail propertyId={id!} />
+        </ScrollView>
       </View>
     );
   }
@@ -537,6 +565,15 @@ const styles = StyleSheet.create({
   heroName:  { color: Colors.white, fontSize: 20, fontWeight: '700', marginBottom: 2 },
   heroAddr:  { color: 'rgba(255,255,255,0.75)', fontSize: 12, marginBottom: 2 },
   heroMeta:  { color: 'rgba(255,255,255,0.6)', fontSize: 10 },
+  primaryPill: {
+    alignSelf:         'flex-start',
+    backgroundColor:   'rgba(255,255,255,0.2)',
+    borderRadius:      6,
+    paddingHorizontal: 8,
+    paddingVertical:   3,
+    marginTop:         6,
+  },
+  primaryPillText: { color: Colors.white, fontSize: 9, fontWeight: '700', letterSpacing: 0.6 },
 
   // Stats bar
   statsBar: {

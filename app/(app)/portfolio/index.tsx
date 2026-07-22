@@ -66,6 +66,9 @@ export default function PortfolioScreen() {
     }
 
     const propIds = props.map(p => p.id);
+    // Health score (collection/occupancy/lease/maintenance) is a rental-only concept —
+    // a primary residence has no tenants, so skip fetching it for those.
+    const rentalPropIds = props.filter(p => !p.is_primary_residence).map(p => p.id);
 
     // Fetch rent payments, all units, active leases, per-property cash flow, and per-property
     // health score in parallel. Cash flow comes from get_property_metrics_v2 (via
@@ -78,7 +81,7 @@ export default function PortfolioScreen() {
         .select('id, property_id')
         .in('property_id', propIds),
       Promise.all(propIds.map(id => getPropertyMetrics(id, YEAR, MON).catch(() => null))),
-      Promise.all(propIds.map(id => getPropertyHealthScore(id, YEAR, MON).catch(() => null))),
+      Promise.all(rentalPropIds.map(id => getPropertyHealthScore(id, YEAR, MON).catch(() => null))),
     ]);
 
     const allUnits = (allUnitsRes.data ?? []) as { id: string; property_id: string }[];
@@ -93,7 +96,7 @@ export default function PortfolioScreen() {
         .filter((m): m is NonNullable<typeof m> => m != null)
         .map(m => [m.property_id, m.roe])
     );
-    const healthByProp = new Map(propIds.map((id, i) => [id, healthResults[i]]));
+    const healthByProp = new Map(rentalPropIds.map((id, i) => [id, healthResults[i]]));
 
     // Fetch active leases for occupancy
     const { data: activeLeases } = allUnitIds.length > 0
@@ -113,28 +116,32 @@ export default function PortfolioScreen() {
     }
 
     const rows: PropertyRowData[] = props.map(p => {
+      const isPrimary   = !!p.is_primary_residence;
       const cf          = cashFlowByProp.get(p.id) ?? 0;
       const hs          = healthByProp.get(p.id);
       const totalUnits  = totalUnitsByProp.get(p.id) ?? p.unit_count;
       const occupied    = occupiedByProp.get(p.id) ?? 0;
-      const vacantUnits = Math.max(totalUnits - occupied, 0);
+      const vacantUnits = isPrimary ? 0 : Math.max(totalUnits - occupied, 0);
       // Collection rate and score come from getPropertyHealthScore — the same source the
       // property detail screen uses — so a vacant/at-risk property reads consistently in
       // both places instead of the list showing its own rosier local estimate.
+      // Primary residences have no health score (no tenants/collection concept) —
+      // default to 'healthy' so they never surface in the critical/warning nudges.
       const pct         = hs?.detail.collectionRate ?? 1;
-      const healthScore = hs?.score ?? 0;
-      const h           = toHealth(healthScore);
+      const healthScore = hs?.score;
+      const h           = isPrimary ? 'healthy' : toHealth(healthScore ?? 0);
       const roe         = roeByProp.get(p.id) ?? null;
       return {
         ...p,
-        unit_count:     totalUnits,
-        cashFlow:       cf,
-        collectionRate: pct,
-        vacancies:      vacantUnits,
-        health:         h,
-        badgeLabel:     toBadge(h, cf),
-        healthScore,
+        unit_count:          totalUnits,
+        cashFlow:            cf,
+        collectionRate:      pct,
+        vacancies:           vacantUnits,
+        health:              h,
+        badgeLabel:          toBadge(h, cf),
+        healthScore:         isPrimary ? undefined : healthScore,
         roe,
+        isPrimaryResidence:  isPrimary,
       };
     });
 
@@ -149,13 +156,16 @@ export default function PortfolioScreen() {
         .from('properties')
         .select('id', { count: 'exact', head: true })
         .eq('workspace_id', wsId)
+        .eq('is_primary_residence', false)
         .is('monthly_debt_service', null)
         .is('annual_noi', null);
       setIncompleteCount(count ?? 0);
     }
     setVacancies(rows.reduce((s, p) => s + (p.vacancies ?? 0), 0));
-    setOverallPct(rows.length > 0
-      ? Math.round(rows.reduce((s, p) => s + p.collectionRate, 0) / rows.length * 100)
+    // Collection % is a rental-only metric — exclude primary residences from the average.
+    const rentalRows = rows.filter(p => !p.isPrimaryResidence);
+    setOverallPct(rentalRows.length > 0
+      ? Math.round(rentalRows.reduce((s, p) => s + p.collectionRate, 0) / rentalRows.length * 100)
       : 0);
   }, []);
 

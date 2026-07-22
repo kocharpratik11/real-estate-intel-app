@@ -19,6 +19,11 @@ export async function generateAlerts(
 
   const propMap = new Map(props.map(p => [p.id, p.name]));
 
+  // Rent, occupancy, lease and cash-flow alerts don't apply to a primary
+  // residence — it has no tenants and isn't a rental investment. Maintenance
+  // is the one rule kept for all properties, since a home still needs repairs.
+  const rentalPropIds = props.filter(p => !p.is_primary_residence).map(p => p.id);
+
   // Fetch all data in parallel
   const [
     overdueRes,
@@ -29,22 +34,27 @@ export async function generateAlerts(
     metricsResults,
   ] = await Promise.all([
     // 1. Overdue rent payments this month
-    supabase
-      .from('rent_payments')
-      .select('id, amount_due, property_id, properties(name)')
-      .in('property_id', propIds)
-      .in('status', ['late', 'partial'])
-      .eq('period_year', year)
-      .eq('period_month', month)
-      .eq('charge_type', 'rent'),
+    rentalPropIds.length > 0
+      ? supabase
+          .from('rent_payments')
+          .select('id, amount_due, property_id, properties(name)')
+          .in('property_id', rentalPropIds)
+          .in('status', ['late', 'partial'])
+          .eq('period_year', year)
+          .eq('period_month', month)
+          .eq('charge_type', 'rent')
+      : Promise.resolve({ data: [] as any[] }),
 
     // For leases expiring
-    supabase
-      .from('units')
-      .select('id, property_id, vacancy_started_at')
-      .in('property_id', propIds),
+    rentalPropIds.length > 0
+      ? supabase
+          .from('units')
+          .select('id, property_id, vacancy_started_at')
+          .in('property_id', rentalPropIds)
+      : Promise.resolve({ data: [] as any[] }),
 
-    // 3. Urgent / high maintenance tickets
+    // 3. Urgent / high maintenance tickets — applies to every property, primary
+    // residences included (a leak still needs fixing whether it's a rental or home)
     supabase
       .from('maintenance_events')
       .select('id, property_id, title, priority, status')
@@ -53,22 +63,28 @@ export async function generateAlerts(
       .in('status', ['requested', 'scheduled', 'in_progress']),
 
     // 4. Collection rate this month
-    supabase
-      .from('rent_payments')
-      .select('property_id, amount_due, amount_paid, status')
-      .in('property_id', propIds)
-      .eq('period_year', year)
-      .eq('period_month', month)
-      .eq('charge_type', 'rent'),
+    rentalPropIds.length > 0
+      ? supabase
+          .from('rent_payments')
+          .select('property_id, amount_due, amount_paid, status')
+          .in('property_id', rentalPropIds)
+          .eq('period_year', year)
+          .eq('period_month', month)
+          .eq('charge_type', 'rent')
+      : Promise.resolve({ data: [] as any[] }),
 
     // 5. Vacant units (vacancy_started_at is set)
-    supabase
-      .from('units')
-      .select('id, property_id, label, vacancy_started_at')
-      .in('property_id', propIds)
-      .not('vacancy_started_at', 'is', null),
+    rentalPropIds.length > 0
+      ? supabase
+          .from('units')
+          .select('id, property_id, label, vacancy_started_at')
+          .in('property_id', rentalPropIds)
+          .not('vacancy_started_at', 'is', null)
+      : Promise.resolve({ data: [] as any[] }),
 
-    // 6. Per-property cash flow (NOI - debt service), same source as the portfolio list
+    // 6. Per-property cash flow (NOI - debt service), same source as the portfolio
+    // list. getPropertyMetrics already zeroes this out for primary residences, so
+    // rule 6 below naturally never fires for them.
     Promise.all(propIds.map(id => getPropertyMetrics(id, year, month).catch(() => null))),
   ]);
 

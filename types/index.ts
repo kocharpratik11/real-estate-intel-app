@@ -27,6 +27,12 @@ export type Property = {
   annual_noi?: number | null;
   purchase_price?: number | null;
   purchase_date?: string | null;
+  // True for owner-occupied primary residences — excluded from rental metrics
+  // (ROE, cash flow, rent collection) but included in total equity/value.
+  is_primary_residence?: boolean;
+  target_payoff_date?: string | null;
+  annual_property_tax?: number | null;
+  monthly_hoa_fee?: number | null;
 };
 
 export type Unit = {
@@ -133,6 +139,7 @@ export type Vendor = {
 
 export type PropertyMetrics = {
   property_id: string;
+  is_primary_residence: boolean;
   monthly_cash_flow: number;
   collection_rate: number;    // 0–1
   units_paid: number;

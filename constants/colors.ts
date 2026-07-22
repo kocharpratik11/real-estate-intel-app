@@ -8,7 +8,9 @@ export const Colors = {
   // Brand — blue as primary
   blue:     '#3B82F6',
   indigo:   '#3B82F6',   // alias kept for existing call sites
-  purple:   '#8B5CF6',   // accent, AI gradient endpoint
+  purple:   '#8B5CF6',   // accent, AI gradient endpoint; also primary-residence type indicator
+  purpleBg: 'rgba(139, 92, 246, 0.12)',
+  purpleBd: 'rgba(139, 92, 246, 0.35)',
 
   // Text
   text:     '#F1F5F9',

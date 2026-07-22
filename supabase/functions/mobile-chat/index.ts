@@ -94,6 +94,7 @@ function calcOutstandingBalance(loan: LoanRow): number {
 interface PropertyContext {
   id: string;
   name: string;
+  type: 'primary_residence' | 'rental';
   address: string;
   acquisitionDate: string | null;
   acquisitionPrice: number | null;
@@ -134,7 +135,7 @@ async function buildPortfolioContext(admin: any, workspaceId: string) {
     admin
       .from('properties')
       .select(`
-        id, name, address_line1, city, state,
+        id, name, address_line1, city, state, is_primary_residence,
         acquisition_date, acquisition_price, current_market_value,
         annual_property_tax, monthly_hoa_fee, monthly_debt_service,
         units(
@@ -171,6 +172,7 @@ async function buildPortfolioContext(admin: any, workspaceId: string) {
   const maintList = (openMaintenance ?? []) as any[];
 
   const contextProperties: PropertyContext[] = (properties ?? []).map((p: any) => {
+    const isPrimary = Boolean(p.is_primary_residence);
     const loans = (p.financing_structures || []) as LoanRow[];
     const activeLoans = loans.filter(l => !l.payoff_date || new Date(l.payoff_date) > today);
     const totalDebt = loans.reduce((s, l) => s + calcOutstandingBalance(l), 0);
@@ -185,13 +187,15 @@ async function buildPortfolioContext(admin: any, workspaceId: string) {
     const monthlyRentTotal = activeLeases.reduce((s: number, l: any) => s + (l.monthly_rent || 0), 0);
     const monthlyDebtService = p.monthly_debt_service || 0;
     const monthlyExpenses = ((p.annual_property_tax || 0) + (p.monthly_hoa_fee || 0) * 12) / 12;
-    const monthlyCashFlow = monthlyRentTotal - monthlyDebtService - monthlyExpenses;
+    // A primary residence isn't rental income — cash flow and ROE don't apply
+    // to it, matching the web app's convention. Equity/market value still do.
+    const monthlyCashFlow = isPrimary ? null : (monthlyRentTotal - monthlyDebtService - monthlyExpenses);
 
     const annualRent = monthlyRentTotal * 12;
     const annualDebtService = monthlyDebtService * 12;
     const annualExpenses = (p.expenses || []).reduce((s: number, e: any) => s + (e.amount || 0), 0);
     const noi = annualRent - annualExpenses;
-    const roe = equity <= 0 ? null : ((noi - annualDebtService) / equity) * 100;
+    const roe = (isPrimary || equity <= 0) ? null : ((noi - annualDebtService) / equity) * 100;
 
     const propertyPayments = (recentPayments ?? [])
       .filter((rp: any) => rp.property_id === p.id)
@@ -206,13 +210,14 @@ async function buildPortfolioContext(admin: any, workspaceId: string) {
     return {
       id: p.id,
       name: p.name,
+      type: isPrimary ? 'primary_residence' : 'rental',
       address: [p.address_line1, p.city, p.state].filter(Boolean).join(', '),
       acquisitionDate: p.acquisition_date,
       acquisitionPrice: p.acquisition_price,
       currentMarketValue: marketValue || null,
       equity,
       roe: roe !== null ? Math.round(roe * 10) / 10 : null,
-      monthlyCashFlow: Math.round(monthlyCashFlow),
+      monthlyCashFlow: monthlyCashFlow !== null ? Math.round(monthlyCashFlow) : null,
       annualExpenses: annualExpenses || null,
       annualPropertyTax: p.annual_property_tax,
       monthlyHOA: p.monthly_hoa_fee,
@@ -249,12 +254,15 @@ async function buildPortfolioContext(admin: any, workspaceId: string) {
     };
   });
 
+  // Equity and market value totals include primary residences; income, cash
+  // flow and ROE totals are rental-only — matching the web app's convention.
+  const rentalProperties = contextProperties.filter(p => p.type === 'rental');
   const totalMarketValue = contextProperties.reduce((s, p) => s + (p.currentMarketValue || 0), 0);
   const totalEquity      = contextProperties.reduce((s, p) => s + p.equity, 0);
   const totalDebt         = Math.max(0, totalMarketValue - totalEquity);
-  const monthlyIncome     = contextProperties.reduce((s, p) => s + p.activeLeases.reduce((ls, l) => ls + l.monthlyRent, 0), 0);
-  const monthlyCashFlow   = contextProperties.reduce((s, p) => s + (p.monthlyCashFlow ?? 0), 0);
-  const roeValues = contextProperties.map(p => p.roe).filter((r): r is number => r !== null);
+  const monthlyIncome     = rentalProperties.reduce((s, p) => s + p.activeLeases.reduce((ls, l) => ls + l.monthlyRent, 0), 0);
+  const monthlyCashFlow   = rentalProperties.reduce((s, p) => s + (p.monthlyCashFlow ?? 0), 0);
+  const roeValues = rentalProperties.map(p => p.roe).filter((r): r is number => r !== null);
   const avgROE = roeValues.length > 0 ? roeValues.reduce((s, r) => s + r, 0) / roeValues.length : 0;
 
   return {
@@ -285,6 +293,7 @@ CRITICAL RULES:
 6. Never give tax advice. Say "consult a tax professional" for tax-specific questions.
 7. Never guarantee returns or market performance.
 8. Answer ONLY the current question. Do not repeat or re-summarize previous answers.
+9. Properties with type "primary_residence" are the user's personal home, not an investment. Never suggest selling, converting, or redeploying equity from a primary residence unless the user explicitly asks about it. Cash flow and ROE are null for these properties by design — that means "not applicable," not a problem to flag.
 
 PORTFOLIO CONTEXT:
 ${JSON.stringify(context, null, 2)}`;

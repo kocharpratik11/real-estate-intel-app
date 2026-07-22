@@ -25,3 +25,17 @@ export function computeMortgageBalance(
   const balance = principal * growth - (monthlyPayment * (growth - 1)) / r;
   return Math.max(balance, 0);
 }
+
+// Number of P&I payments made as of today, for a payoff-timeline estimate.
+// Standard US mortgage convention: the first regular payment is due on the
+// 1st of the second calendar month after origination (closing-month interest
+// is prepaid at closing).
+export function calcPaymentsMade(originationDate: string, termMonths: number): number {
+  const [oy, om] = originationDate.split('-').map(Number); // om is 1-indexed
+  const firstPayment = new Date(oy, om + 1, 1); // 0-indexed: (om-1)+2
+  const today = new Date();
+  if (today < firstPayment) return 0;
+  const n = (today.getFullYear() - firstPayment.getFullYear()) * 12
+    + (today.getMonth()   - firstPayment.getMonth()) + 1;
+  return Math.min(n, termMonths);
+}

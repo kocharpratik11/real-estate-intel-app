@@ -5,13 +5,14 @@ import type { Property } from '@/types';
 type HealthStatus = 'healthy' | 'warning' | 'critical';
 
 export type PropertyRowData = Property & {
-  cashFlow:       number;
-  collectionRate: number;  // 0–1
-  badgeLabel:     string;
-  health:         HealthStatus;
-  vacancies?:     number;
-  healthScore?:   number;  // 0–100, Phase 2
-  roe?:           number | null;  // annualized cash flow / current equity, as a percentage
+  cashFlow:            number;
+  collectionRate:      number;  // 0–1
+  badgeLabel:          string;
+  health:              HealthStatus;
+  vacancies?:          number;
+  healthScore?:        number;  // 0–100, Phase 2
+  roe?:                number | null;  // annualized cash flow / current equity, as a percentage
+  isPrimaryResidence?: boolean;
 };
 
 type Props = {
@@ -50,7 +51,8 @@ function ScoreChip({ score }: { score: number }) {
 }
 
 export function PropertyRow({ property: p, onPress }: Props) {
-  const accentColor = HEALTH_COLOR[p.health];
+  const isPrimary   = !!p.isPrimaryResidence;
+  const accentColor = isPrimary ? Colors.purple : HEALTH_COLOR[p.health];
   const pct         = Math.round(p.collectionRate * 100);
   const cfColor     = p.cashFlow < 0 ? Colors.red : Colors.green;
 
@@ -61,18 +63,21 @@ export function PropertyRow({ property: p, onPress }: Props) {
         <View style={styles.nameRow}>
           <Text style={styles.name}>{p.name}</Text>
           <View style={styles.badgeCol}>
-            {p.healthScore != null
-              ? <ScoreChip score={p.healthScore} />
-              : (
-                <View style={[styles.badge, {
-                  backgroundColor: HEALTH_BADGE_BG[p.health],
-                  borderColor:     HEALTH_BADGE_BD[p.health],
-                }]}>
-                  <Text style={[styles.badgeText, { color: accentColor }]}>{p.badgeLabel}</Text>
-                </View>
-              )
-            }
-            {p.roe != null && (
+            {isPrimary ? (
+              <View style={[styles.badge, { backgroundColor: Colors.purpleBg, borderColor: Colors.purpleBd }]}>
+                <Text style={[styles.badgeText, { color: Colors.purple }]}>Home</Text>
+              </View>
+            ) : p.healthScore != null ? (
+              <ScoreChip score={p.healthScore} />
+            ) : (
+              <View style={[styles.badge, {
+                backgroundColor: HEALTH_BADGE_BG[p.health],
+                borderColor:     HEALTH_BADGE_BD[p.health],
+              }]}>
+                <Text style={[styles.badgeText, { color: accentColor }]}>{p.badgeLabel}</Text>
+              </View>
+            )}
+            {!isPrimary && p.roe != null && (
               <Text style={[styles.roeText, { color: p.roe < 0 ? Colors.red : Colors.textMuted }]}>
                 {p.roe.toFixed(1)}% ROE
               </Text>
@@ -84,19 +89,32 @@ export function PropertyRow({ property: p, onPress }: Props) {
         <Text style={styles.address}>{p.address_line1}, {p.city}</Text>
         <Text style={styles.units}>{p.unit_count} units</Text>
 
-        {/* progress bar */}
-        <View style={styles.barTrack}>
-          <View style={[
-            styles.barFill,
-            { width: `${pct}%`, backgroundColor: pct >= 80 ? Colors.green : pct >= 60 ? Colors.yellow : Colors.red }
-          ]} />
-        </View>
-        <View style={styles.bottomRow}>
-          <Text style={styles.pct}>{pct}% collected</Text>
-          <Text style={[styles.cf, { color: cfColor }]}>
-            {p.cashFlow >= 0 ? '↑' : '↓'} ${Math.round(Math.abs(p.cashFlow)).toLocaleString()}/mo
-          </Text>
-        </View>
+        {isPrimary ? (
+          /* Primary residences don't have rental income — show equity instead
+             of a collection bar/cash flow, matching the web app's treatment. */
+          <View style={styles.bottomRow}>
+            <Text style={styles.pct}>Primary Residence</Text>
+            <Text style={[styles.cf, { color: Colors.purple }]}>
+              ${Math.round(p.total_equity ?? 0).toLocaleString()} equity
+            </Text>
+          </View>
+        ) : (
+          <>
+            {/* progress bar */}
+            <View style={styles.barTrack}>
+              <View style={[
+                styles.barFill,
+                { width: `${pct}%`, backgroundColor: pct >= 80 ? Colors.green : pct >= 60 ? Colors.yellow : Colors.red }
+              ]} />
+            </View>
+            <View style={styles.bottomRow}>
+              <Text style={styles.pct}>{pct}% collected</Text>
+              <Text style={[styles.cf, { color: cfColor }]}>
+                {p.cashFlow >= 0 ? '↑' : '↓'} ${Math.round(Math.abs(p.cashFlow)).toLocaleString()}/mo
+              </Text>
+            </View>
+          </>
+        )}
 
         <Text style={styles.chevron}>›</Text>
       </View>
