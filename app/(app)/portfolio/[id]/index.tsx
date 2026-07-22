@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, ActivityIndicator, RefreshControl,
+  StyleSheet, ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { getProperty, getActiveLeases, getPropertyMetrics } from '@/lib/api/properties';
+import { refreshValuation } from '@/lib/api/valuations';
+import { hapticSuccess, hapticError } from '@/lib/haptics';
 import type { PropertyMetrics } from '@/types';
 import { isPropertySetupComplete } from '@/lib/utils/propertySetup';
 import { WebSetupNudge } from '@/components/ui/WebSetupNudge';
@@ -70,6 +72,41 @@ export default function PropertyDetailScreen() {
   const [selectedTicket, setSelectedTicket] = useState<MaintenanceEvent | null>(null);
   const [chartData,     setChartData]     = useState<MonthlyCollection[]>([]);
   const [plData,        setPLData]        = useState<MonthlyPL[]>([]);
+  const [workspaceId,   setWorkspaceId]   = useState<string | null>(null);
+  const [isOwner,       setIsOwner]       = useState(false);
+  const [refreshingValuation, setRefreshingValuation] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setWorkspaceId(user.user_metadata?.current_workspace_id ?? null);
+      setIsOwner((user.user_metadata?.current_workspace_role ?? 'owner') === 'owner');
+    })();
+  }, []);
+
+  const handleRefreshValuation = async () => {
+    if (!id || !workspaceId || refreshingValuation) return;
+    setRefreshingValuation(true);
+    try {
+      const { results } = await refreshValuation(workspaceId, id);
+      const result = results[0];
+      hapticSuccess();
+      if (!result || result.skipped) {
+        Alert.alert('No update available', "Couldn't find a fresh estimate for this address right now.");
+      } else if (!result.changed) {
+        Alert.alert('Already up to date', 'The current value already reflects the latest estimate.');
+      } else {
+        Alert.alert('Valuation updated', `New value: $${Math.round(result.effectiveValue ?? 0).toLocaleString()}`);
+      }
+      await load();
+    } catch (e: any) {
+      hapticError();
+      Alert.alert('Refresh failed', e.message ?? 'Could not refresh valuation.');
+    } finally {
+      setRefreshingValuation(false);
+    }
+  };
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -398,6 +435,30 @@ export default function PropertyDetailScreen() {
               </View>
               <Text style={styles.chevron}>›</Text>
             </TouchableOpacity>
+
+            {isOwner && (
+              <TouchableOpacity
+                style={[styles.ctaRow, { marginTop: 10 }]}
+                onPress={handleRefreshValuation}
+                disabled={refreshingValuation}
+                activeOpacity={0.8}
+              >
+                <View style={styles.ctaIcon}>
+                  {refreshingValuation
+                    ? <ActivityIndicator size="small" color={Colors.indigo} />
+                    : <Text style={styles.ctaIconText}>↻</Text>
+                  }
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.ctaTitle}>Refresh Valuation</Text>
+                  <Text style={styles.ctaSub}>
+                    {property.value_updated_at
+                      ? `Last updated ${new Date(property.value_updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                      : 'Pull the latest estimated market value'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 

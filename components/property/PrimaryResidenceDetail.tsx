@@ -1,8 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { getPrimaryResidenceDetail } from '@/lib/api/properties';
+import { refreshValuation } from '@/lib/api/valuations';
 import { computeMortgageBalance, calcPaymentsMade } from '@/lib/utils/mortgage';
 import { openPropertyOnWeb } from '@/lib/utils/propertySetup';
+import { supabase } from '@/lib/supabase';
+import { hapticSuccess, hapticError } from '@/lib/haptics';
 import { Colors } from '@/constants/colors';
 import { Card } from '@/components/ui/Card';
 
@@ -37,6 +40,9 @@ export function PrimaryResidenceDetail({ propertyId }: Props) {
   const [property,    setProperty]    = useState<any>(null);
   const [loading,     setLoading]     = useState(true);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [isOwner,     setIsOwner]     = useState(false);
+  const [refreshingValuation, setRefreshingValuation] = useState(false);
 
   const load = useCallback(async () => {
     const data = await getPrimaryResidenceDetail(propertyId).catch(() => null);
@@ -45,6 +51,38 @@ export function PrimaryResidenceDetail({ propertyId }: Props) {
   }, [propertyId]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setWorkspaceId(user.user_metadata?.current_workspace_id ?? null);
+      setIsOwner((user.user_metadata?.current_workspace_role ?? 'owner') === 'owner');
+    })();
+  }, []);
+
+  const handleRefreshValuation = async () => {
+    if (!workspaceId || refreshingValuation) return;
+    setRefreshingValuation(true);
+    try {
+      const { results } = await refreshValuation(workspaceId, propertyId);
+      const result = results[0];
+      hapticSuccess();
+      if (!result || result.skipped) {
+        Alert.alert('No update available', "Couldn't find a fresh estimate for this address right now.");
+      } else if (!result.changed) {
+        Alert.alert('Already up to date', 'The current value already reflects the latest estimate.');
+      } else {
+        Alert.alert('Valuation updated', `New value: $${Math.round(result.effectiveValue ?? 0).toLocaleString()}`);
+      }
+      await load();
+    } catch (e: any) {
+      hapticError();
+      Alert.alert('Refresh failed', e.message ?? 'Could not refresh valuation.');
+    } finally {
+      setRefreshingValuation(false);
+    }
+  };
 
   if (loading) {
     return <ActivityIndicator style={{ marginTop: 40 }} color={Colors.purple} />;
@@ -124,6 +162,28 @@ export function PrimaryResidenceDetail({ propertyId }: Props) {
           <Text style={styles.statSub}>At current payment</Text>
         </Card>
       </View>
+
+      {isOwner && (
+        <TouchableOpacity
+          style={styles.refreshRow}
+          onPress={handleRefreshValuation}
+          disabled={refreshingValuation}
+          activeOpacity={0.8}
+        >
+          {refreshingValuation
+            ? <ActivityIndicator size="small" color={Colors.purple} />
+            : <Text style={styles.refreshIcon}>↻</Text>
+          }
+          <View style={{ flex: 1 }}>
+            <Text style={styles.refreshTitle}>Refresh Valuation</Text>
+            <Text style={styles.refreshSub}>
+              {property.value_updated_at
+                ? `Last updated ${new Date(property.value_updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                : 'Pull the latest estimated market value'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
       {/* Equity Growth */}
       <Card style={styles.section}>
@@ -282,6 +342,20 @@ const styles = StyleSheet.create({
 
   section: { padding: 16, gap: 12 },
   sectionTitle: { color: Colors.text, fontSize: 14, fontWeight: '700' },
+
+  refreshRow: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    backgroundColor: Colors.card,
+    borderRadius:    12,
+    borderWidth:     1,
+    borderColor:     Colors.border,
+    padding:         14,
+    gap:             12,
+  },
+  refreshIcon:  { color: Colors.purple, fontSize: 18, fontWeight: '700', width: 20, textAlign: 'center' },
+  refreshTitle: { color: Colors.text, fontSize: 13, fontWeight: '600' },
+  refreshSub:   { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
 
   growthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   growthCell: { minWidth: '40%', gap: 4 },

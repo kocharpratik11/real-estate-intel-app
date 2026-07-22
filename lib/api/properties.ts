@@ -32,7 +32,7 @@ export async function getPrimaryResidenceDetail(propertyId: string) {
     .from('properties')
     .select(`
       id, name, address_line1, address_line2, city, state, zip,
-      current_market_value, purchase_price, purchase_date,
+      current_market_value, value_updated_at, purchase_price, purchase_date,
       annual_property_tax, monthly_hoa_fee, target_payoff_date,
       financing_structures(
         id, lender_name, loan_amount, current_balance, interest_rate,

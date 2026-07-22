@@ -21,6 +21,7 @@ export type Property = {
   workspace_id: string;
   // Financial columns (computed by DB trigger calculate_property_metrics)
   current_market_value?: number | null;
+  value_updated_at?: string | null;
   total_equity?: number | null;
   roe_percentage?: number | null;
   monthly_debt_service?: number | null;
