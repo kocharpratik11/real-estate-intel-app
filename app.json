@@ -55,8 +55,8 @@
       [
         "@sentry/react-native/expo",
         {
-          "organization": "YOUR_SENTRY_ORG_SLUG",
-          "project": "YOUR_SENTRY_PROJECT_SLUG"
+          "organization": "rei-cd",
+          "project": "react-native"
         }
       ]
     ],
