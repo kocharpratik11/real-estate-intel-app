@@ -10,6 +10,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.assetbrain.app",
+      "buildNumber": "6",
       "newArchEnabled": true,
       "infoPlist": {
         "NSFaceIDUsageDescription": "Asset Brain uses Face ID to quickly and securely unlock your portfolio.",
