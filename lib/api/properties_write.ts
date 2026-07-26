@@ -18,6 +18,22 @@ export type CreatePropertyInput = {
   unit_count?: number;
 };
 
+// properties.asset_class is NOT NULL in the DB. The web app's create flow lets
+// the user pick asset_class directly and derives the legacy property_type
+// from it; mobile's quick-add flow only collects property_type, so derive
+// asset_class the other way here — same residential-unit-count grouping web
+// uses (single unit -> single_family, multi-unit -> multifamily).
+function assetClassFromPropertyType(propertyType: Property['property_type']): NonNullable<Property['asset_class']> {
+  switch (propertyType) {
+    case 'sfh': return 'single_family';
+    case 'duplex':
+    case 'triplex':
+    case 'fourplex':
+    case 'multifamily': return 'multifamily';
+    default: return 'single_family';
+  }
+}
+
 export async function createProperty(input: CreatePropertyInput): Promise<Property> {
   const { data, error } = await supabase
     .from('properties')
@@ -30,7 +46,7 @@ export async function createProperty(input: CreatePropertyInput): Promise<Proper
       state:               input.state,
       zip:                 input.zip                  ?? null,
       property_type:       input.property_type,
-      asset_class:         input.asset_class          ?? null,
+      asset_class:         input.asset_class          ?? assetClassFromPropertyType(input.property_type),
       property_usage:      input.property_usage       ?? null,
       purchase_price:      input.purchase_price       ?? null,
       purchase_date:       input.purchase_date        ?? null,
