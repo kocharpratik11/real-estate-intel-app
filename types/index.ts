@@ -95,7 +95,6 @@ export type RentPayment = {
 export type Expense = {
   id: string;
   property_id: string;
-  unit_id: string | null;
   category: string;
   amount: number;
   expense_date: string;

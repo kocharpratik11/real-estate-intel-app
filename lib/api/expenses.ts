@@ -3,7 +3,6 @@ import type { Expense } from '@/types';
 
 export type LogExpenseInput = {
   property_id: string;
-  unit_id?: string | null;
   category: string;
   amount: number;
   expense_date: string;   // YYYY-MM-DD
@@ -18,7 +17,6 @@ export async function logExpense(input: LogExpenseInput): Promise<Expense> {
     .from('expenses')
     .insert({
       property_id:  input.property_id,
-      unit_id:      input.unit_id     ?? null,
       category:     input.category,
       amount:       input.amount,
       expense_date: input.expense_date,

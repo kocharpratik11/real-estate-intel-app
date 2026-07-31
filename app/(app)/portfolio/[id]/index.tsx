@@ -126,7 +126,7 @@ export default function PropertyDetailScreen() {
     const [{ data }, plResult] = await Promise.all([
       supabase
         .from('expenses')
-        .select('id, property_id, unit_id, category, amount, expense_date, description, vendor')
+        .select('id, property_id, category, amount, expense_date, description, vendor')
         .eq('property_id', id)
         .order('expense_date', { ascending: false })
         .limit(30),
