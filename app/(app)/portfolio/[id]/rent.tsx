@@ -6,8 +6,10 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getRentPayments, buildLedger } from '@/lib/api/rent';
+import { getRentPayments, buildLedger, generateRentChargesForMonth } from '@/lib/api/rent';
 import { getActiveLeases } from '@/lib/api/properties';
+import { supabase } from '@/lib/supabase';
+import { hapticSuccess, hapticError } from '@/lib/haptics';
 import { LedgerRow } from '@/components/rent/LedgerRow';
 import { RecordPaymentSheet } from '@/components/rent/RecordPaymentSheet';
 import { AddChargeSheet } from '@/components/rent/AddChargeSheet';
@@ -38,6 +40,36 @@ export default function RentLedgerScreen() {
   const [showSheet,  setShowSheet]  = useState(false);
   const [activeLeases,  setActiveLeases]  = useState<Lease[]>([]);
   const [showAddCharge, setShowAddCharge] = useState(false);
+  const [isOwner,       setIsOwner]       = useState(false);
+  const [generating,    setGenerating]    = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setIsOwner((user.user_metadata?.current_workspace_role ?? 'owner') === 'owner');
+    })();
+  }, []);
+
+  const handleGenerateCharges = async () => {
+    if (!id || generating) return;
+    setGenerating(true);
+    try {
+      const { created, skipped } = await generateRentChargesForMonth(id, year, month);
+      hapticSuccess();
+      if (created === 0) {
+        Alert.alert('Nothing to generate', 'Every active lease already has a rent charge for this month.');
+      } else {
+        Alert.alert('Rent charges generated', `Created ${created} charge${created !== 1 ? 's' : ''} for ${MONTHS[month - 1]} ${year}.`);
+      }
+      await load();
+    } catch (e: any) {
+      hapticError();
+      Alert.alert('Failed to generate', e.message ?? 'Could not generate rent charges.');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -211,6 +243,26 @@ export default function RentLedgerScreen() {
           </View>
         </View>
 
+        {/* No rent charges generated yet for this month — web has no automatic
+            recurring job, someone has to trigger it, and this is that "someone". */}
+        {!isSingleUnit && isOwner && totalCount === 0 && (
+          <TouchableOpacity
+            style={styles.generateRow}
+            onPress={handleGenerateCharges}
+            disabled={generating}
+            activeOpacity={0.85}
+          >
+            {generating
+              ? <ActivityIndicator size="small" color={Colors.blue} />
+              : <Text style={styles.generateIcon}>+</Text>
+            }
+            <View style={{ flex: 1 }}>
+              <Text style={styles.generateTitle}>Generate {MONTHS[month - 1]} {year} Rent Charges</Text>
+              <Text style={styles.generateSub}>Creates the monthly rent charge for each active lease</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* Filter chips */}
         <ScrollView
           horizontal
@@ -366,6 +418,21 @@ const styles = StyleSheet.create({
     overflow:        'hidden',
   },
   barFill:         { height: 5, borderRadius: 3 },
+  generateRow: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    backgroundColor:  Colors.aiCard,
+    borderRadius:     12,
+    borderWidth:      1,
+    borderColor:      Colors.aiBorder,
+    marginHorizontal: 16,
+    marginTop:        10,
+    padding:          14,
+    gap:              12,
+  },
+  generateIcon:  { color: Colors.blue, fontSize: 20, fontWeight: '700', width: 20, textAlign: 'center' },
+  generateTitle: { color: Colors.text, fontSize: 13, fontWeight: '600' },
+  generateSub:   { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
   filterRow:       { maxHeight: 56 },
   chip: {
     backgroundColor:   Colors.card,

@@ -26,6 +26,67 @@ export async function getRentPayments(
 }
 
 /**
+ * Generate the monthly rent charge for every active lease at a property for
+ * a given period — mirrors the web app's generateRentPayment server action,
+ * looped across all active leases. Web has no automatic recurring job for
+ * this; someone has to trigger it each month, and mobile had no way to at
+ * all, leaving new months with zero rent charges until someone did it on web.
+ * Idempotent per lease — skips any lease that already has a rent charge for
+ * that period, so it's safe to call even when some units are already done.
+ */
+export async function generateRentChargesForMonth(
+  propertyId: string,
+  year: number,
+  month: number,
+): Promise<{ created: number; skipped: number }> {
+  const { data: units } = await supabase
+    .from('units')
+    .select('id')
+    .eq('property_id', propertyId);
+  const unitIds = (units ?? []).map((u: any) => u.id as string);
+  if (!unitIds.length) return { created: 0, skipped: 0 };
+
+  const { data: leases, error: leaseErr } = await supabase
+    .from('leases')
+    .select('id, unit_id, monthly_rent, workspace_id, status')
+    .in('unit_id', unitIds)
+    .eq('status', 'active');
+  if (leaseErr) throw leaseErr;
+  if (!leases || leases.length === 0) return { created: 0, skipped: 0 };
+
+  const { data: existing } = await supabase
+    .from('rent_payments')
+    .select('lease_id')
+    .in('lease_id', leases.map(l => l.id))
+    .eq('period_year', year)
+    .eq('period_month', month)
+    .eq('charge_type', 'rent');
+  const alreadyHasCharge = new Set((existing ?? []).map((e: any) => e.lease_id as string));
+
+  const missing = leases.filter(l => !alreadyHasCharge.has(l.id));
+  if (missing.length === 0) return { created: 0, skipped: leases.length };
+
+  const dueDate = `${year}-${String(month).padStart(2, '0')}-01`;
+  const rows = missing.map(l => ({
+    workspace_id: l.workspace_id,
+    lease_id:     l.id,
+    property_id:  propertyId,
+    unit_id:      l.unit_id,
+    charge_type:  'rent',
+    period_year:  year,
+    period_month: month,
+    due_date:     dueDate,
+    amount_due:   l.monthly_rent ?? 0,
+    status:       'pending',
+  }));
+
+  const { error } = await supabase.from('rent_payments').insert(rows);
+  if (error) throw error;
+
+  return { created: missing.length, skipped: leases.length - missing.length };
+}
+
+/**
  * Create a one-off charge (late fee, security deposit, pet fee, or other)
  * against a lease — mirrors the web app's createOneOffCharge server action.
  */
