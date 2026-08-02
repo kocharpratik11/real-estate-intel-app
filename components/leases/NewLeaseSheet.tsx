@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet, Modal, KeyboardAvoidingView, Platform,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
 } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Button } from '@/components/ui/Button';
+import { Sheet, BottomSheetScrollView } from '@/components/ui/Sheet';
 import { createLease } from '@/lib/api/leases_write';
 import { hapticSuccess, hapticError } from '@/lib/haptics';
 
@@ -75,19 +75,14 @@ export function NewLeaseSheet({ unitId, unitLabel, workspaceId, visible, onClose
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <View style={styles.overlay}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.sheetWrap}>
-          <View style={styles.sheet}>
-            <View style={styles.handle} />
+    <Sheet visible={visible} onClose={handleClose}>
+      <BottomSheetScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Text style={styles.title}>New Lease</Text>
 
             <View style={styles.contextRow}>
               <Text style={styles.contextIcon}>🏠</Text>
               <Text style={styles.contextName}>{unitLabel}</Text>
             </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
               {/* Status */}
               <Text style={styles.fieldLabel}>LEASE STATUS</Text>
@@ -203,28 +198,15 @@ export function NewLeaseSheet({ unitId, unitLabel, workspaceId, visible, onClose
               <TouchableOpacity onPress={handleClose} style={styles.cancelBtn}>
                 <Text style={styles.cancelLabel}>Cancel</Text>
               </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
+      </BottomSheetScrollView>
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
-  sheetWrap: { justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor:      Colors.card,
-    borderTopLeftRadius:  24,
-    borderTopRightRadius: 24,
-    paddingHorizontal:    16,
-    paddingBottom:        36,
-    maxHeight:            '90%',
-  },
-  handle: {
-    width: 40, height: 4, backgroundColor: Colors.border,
-    borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 16,
+  content: {
+    paddingHorizontal: 16,
+    paddingBottom:     36,
   },
   title: { color: Colors.text, fontSize: 18, fontWeight: '700', marginBottom: 16 },
   contextRow: {

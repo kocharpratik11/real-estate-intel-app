@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
 import * as Linking from 'expo-linking';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { supabase } from '@/lib/supabase';
 import { Colors } from '@/constants/colors';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
@@ -134,10 +135,12 @@ const crashStyles = StyleSheet.create({
 function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.bg }}>
-      <StatusBar style="light" backgroundColor={Colors.bg} />
-      <AuthProvider>
-        <RootLayoutInner />
-      </AuthProvider>
+      <BottomSheetModalProvider>
+        <StatusBar style="light" backgroundColor={Colors.bg} />
+        <AuthProvider>
+          <RootLayoutInner />
+        </AuthProvider>
+      </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );
 }

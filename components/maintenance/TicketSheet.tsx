@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet, Modal, KeyboardAvoidingView, Platform,
+  ScrollView, StyleSheet,
 } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Button } from '@/components/ui/Button';
+import { Sheet, BottomSheetScrollView } from '@/components/ui/Sheet';
 import { createTicket, updateTicket, updateTicketStatus, MAINTENANCE_CATEGORIES, type MaintenanceCategory } from '@/lib/api/maintenance';
 import { hapticSuccess, hapticError } from '@/lib/haptics';
 import type { MaintenanceEvent } from '@/types';
@@ -106,11 +107,8 @@ export function TicketSheet({ propertyId, propertyName, ticket, visible, onClose
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <View style={styles.overlay}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.sheetWrap}>
-          <View style={styles.sheet}>
-            <View style={styles.handle} />
+    <Sheet visible={visible} onClose={handleClose}>
+      <BottomSheetScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Text style={styles.title}>{isEdit ? 'Edit Maintenance Ticket' : 'New Maintenance Ticket'}</Text>
 
             {/* Property context */}
@@ -119,7 +117,6 @@ export function TicketSheet({ propertyId, propertyName, ticket, visible, onClose
               <Text style={styles.contextName}>{propertyName}</Text>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {/* Status (edit only) */}
               {isEdit && (
                 <>
@@ -239,28 +236,15 @@ export function TicketSheet({ propertyId, propertyName, ticket, visible, onClose
               <TouchableOpacity onPress={handleClose} style={styles.cancelBtn}>
                 <Text style={styles.cancelLabel}>Cancel</Text>
               </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
+      </BottomSheetScrollView>
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
-  sheetWrap: { justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor:      Colors.card,
-    borderTopLeftRadius:  24,
-    borderTopRightRadius: 24,
-    paddingHorizontal:    16,
-    paddingBottom:        36,
-    maxHeight:            '88%',
-  },
-  handle: {
-    width: 40, height: 4, backgroundColor: Colors.border,
-    borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 16,
+  content: {
+    paddingHorizontal: 16,
+    paddingBottom:     36,
   },
   title: { color: Colors.text, fontSize: 18, fontWeight: '700', marginBottom: 16 },
   contextRow: {
