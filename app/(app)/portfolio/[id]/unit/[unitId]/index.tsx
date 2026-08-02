@@ -191,7 +191,7 @@ export default function UnitDetailScreen() {
                     ['Start',   lease.start_date],
                     ['End',     lease.end_date ?? 'Month-to-month'],
                     ['Rent',    fmt(lease.monthly_rent) + ' / mo'],
-                    ['Deposit', '—'],
+                    ['Deposit', lease.security_deposit != null ? fmt(lease.security_deposit) : '—'],
                   ].map(([label, val]) => (
                     <View key={label} style={s.leaseField}>
                       <Text style={s.leaseFieldLabel}>{label}</Text>
