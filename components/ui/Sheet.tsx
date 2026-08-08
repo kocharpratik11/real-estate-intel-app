@@ -3,32 +3,9 @@ import { StyleSheet } from 'react-native';
 import {
   BottomSheetModal,
   BottomSheetBackdrop,
-  enableLogging,
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet';
-import { runOnUI } from 'react-native-reanimated';
 import { Colors } from '@/constants/colors';
-
-// TEMP diagnostic — dumps @gorhom/bottom-sheet's own internal layout/effect/
-// callback trace so we can see exactly which step of its state machine never
-// advances, instead of guessing from the outside.
-enableLogging();
-
-// TEMP diagnostic — proves whether Babel is actually workletizing functions,
-// independent of @gorhom/bottom-sheet's own internals. If "[worklet] ran on UI
-// thread" never prints, or this throws, worklets aren't being processed and
-// that's the root cause, not anything specific to the bottom-sheet library.
-function testWorklet() {
-  try {
-    runOnUI(() => {
-      'worklet';
-      console.log('[worklet] ran on UI thread');
-    })();
-    console.log('[worklet] runOnUI() called without throwing on JS thread');
-  } catch (e) {
-    console.log('[worklet] runOnUI() threw on JS thread:', e);
-  }
-}
 
 type Props = {
   visible: boolean;
@@ -47,13 +24,18 @@ type Props = {
  */
 export function Sheet({ visible, onClose, children, snapPoints: snapPointsProp }: Props) {
   const ref = useRef<ElementRef<typeof BottomSheetModal>>(null);
+  const hasPresentedRef = useRef(false);
   const snapPoints = useMemo(() => snapPointsProp ?? ['90%'], [snapPointsProp]);
 
   useEffect(() => {
     if (visible) {
-      testWorklet();
+      hasPresentedRef.current = true;
       ref.current?.present();
-    } else {
+    } else if (hasPresentedRef.current) {
+      // Only dismiss once the sheet has actually been presented — calling
+      // dismiss() before the first present() poisons @gorhom/bottom-sheet's
+      // internal status to DISMISSING permanently, so every later present()
+      // silently no-ops (sheet never animates open, no onChange/onAnimate).
       ref.current?.dismiss();
     }
   }, [visible]);
@@ -76,8 +58,6 @@ export function Sheet({ visible, onClose, children, snapPoints: snapPointsProp }
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
       enablePanDownToClose
-      onChange={(index) => console.log('[Sheet] onChange index=', index)}
-      onAnimate={(from, to) => console.log('[Sheet] onAnimate from=', from, 'to=', to)}
     >
       {children}
     </BottomSheetModal>
