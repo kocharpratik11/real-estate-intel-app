@@ -3,10 +3,16 @@ import { StyleSheet } from 'react-native';
 import {
   BottomSheetModal,
   BottomSheetBackdrop,
+  enableLogging,
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet';
 import { runOnUI } from 'react-native-reanimated';
 import { Colors } from '@/constants/colors';
+
+// TEMP diagnostic — dumps @gorhom/bottom-sheet's own internal layout/effect/
+// callback trace so we can see exactly which step of its state machine never
+// advances, instead of guessing from the outside.
+enableLogging();
 
 // TEMP diagnostic — proves whether Babel is actually workletizing functions,
 // independent of @gorhom/bottom-sheet's own internals. If "[worklet] ran on UI
