@@ -13,9 +13,17 @@ export type LogExpenseInput = {
 };
 
 export async function logExpense(input: LogExpenseInput): Promise<Expense> {
+  const { data: property, error: propertyErr } = await supabase
+    .from('properties')
+    .select('workspace_id')
+    .eq('id', input.property_id)
+    .single();
+  if (propertyErr) throw propertyErr;
+
   const { data, error } = await supabase
     .from('expenses')
     .insert({
+      workspace_id: property.workspace_id,
       property_id:  input.property_id,
       category:     input.category,
       amount:       input.amount,
