@@ -22,6 +22,14 @@ const MAX_BRIEFING_CARDS = 10;
 // survives tab re-focus / pull-to-refresh, resets on a full app restart).
 const dismissedInsightIds = new Set<string>();
 
+// Workspaces whose portfolio_insights we've already asked the Edge Function
+// to regenerate this session (module-scoped so it survives tab re-focus,
+// resets on app restart). Without this, refreshInsights() — which calls
+// Claude — fired on every Home tab focus instead of once per session; the
+// screen already reads the live cached row via getCachedInsights() on every
+// focus, so re-generating the AI text that often is pure waste.
+const insightsRefreshedThisSession = new Set<string>();
+
 function greetingFor(name: string): string {
   const hour = new Date().getHours();
   const salutation = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
@@ -98,7 +106,7 @@ export default function HomeScreen() {
   const [refreshing,    setRefreshing]    = useState(false);
   const activeWsId = useRef<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { forceInsightsRefresh?: boolean }) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.replace('/(auth)/login'); return; }
 
@@ -138,17 +146,22 @@ export default function HomeScreen() {
     setInsights(buildBriefingCards(claudeText, alerts, sum));
     setInsightIdx(0);
 
-    // Background refresh: rebuilds portfolio_insights via Edge Function (fires and forgets)
-    // When complete, re-read cache and swap in the updated Claude briefing card.
-    refreshInsights(wsId).then(fresh => {
-      if (!fresh?.briefing_daily) return;
-      if (dismissedInsightIds.has('claude-briefing')) return;
-      setInsights(prev => {
-        const withoutClaude = prev.filter(i => i.id !== 'claude-briefing');
-        return [makeClaudeBriefingInsight(fresh.briefing_daily as string), ...withoutClaude].slice(0, MAX_BRIEFING_CARDS);
-      });
-      setInsightIdx(0);
-    }).catch(() => {});
+    // Background refresh: rebuilds portfolio_insights via Edge Function (fires and forgets).
+    // Only once per workspace per session — tab re-focus just re-reads the cache above;
+    // pull-to-refresh forces it explicitly. When complete, re-read cache and swap in the
+    // updated Claude briefing card.
+    if (opts?.forceInsightsRefresh || !insightsRefreshedThisSession.has(wsId)) {
+      insightsRefreshedThisSession.add(wsId);
+      refreshInsights(wsId).then(fresh => {
+        if (!fresh?.briefing_daily) return;
+        if (dismissedInsightIds.has('claude-briefing')) return;
+        setInsights(prev => {
+          const withoutClaude = prev.filter(i => i.id !== 'claude-briefing');
+          return [makeClaudeBriefingInsight(fresh.briefing_daily as string), ...withoutClaude].slice(0, MAX_BRIEFING_CARDS);
+        });
+        setInsightIdx(0);
+      }).catch(() => {});
+    }
 
     // Recent payments
     const propIds = (propsRes.data ?? []).map((p: any) => p.id);
@@ -189,7 +202,7 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await load();
+    await load({ forceInsightsRefresh: true });
     setRefreshing(false);
   };
 
