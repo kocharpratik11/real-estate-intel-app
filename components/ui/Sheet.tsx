@@ -27,17 +27,8 @@ export function Sheet({ visible, onClose, children, snapPoints: snapPointsProp }
   const snapPoints = useMemo(() => snapPointsProp ?? ['90%'], [snapPointsProp]);
 
   useEffect(() => {
-    console.log('[Sheet] visible=', visible, 'ref.current=', !!ref.current);
-    if (visible) {
-      try {
-        ref.current?.present();
-        console.log('[Sheet] present() called without throwing');
-      } catch (e) {
-        console.log('[Sheet] present() threw:', e);
-      }
-    } else {
-      ref.current?.dismiss();
-    }
+    if (visible) ref.current?.present();
+    else ref.current?.dismiss();
   }, [visible]);
 
   const renderBackdrop = useCallback(
@@ -58,7 +49,6 @@ export function Sheet({ visible, onClose, children, snapPoints: snapPointsProp }
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
       enablePanDownToClose
-      onChange={(index) => console.log('[Sheet] onChange index=', index)}
     >
       {children}
     </BottomSheetModal>
