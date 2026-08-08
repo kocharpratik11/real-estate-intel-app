@@ -12,6 +12,7 @@ export type CreatePropertyInput = {
   property_type: Property['property_type'];
   asset_class?: Property['asset_class'];
   property_usage?: Property['property_usage'];
+  is_primary_residence?: boolean;
   purchase_price?: number | null;
   purchase_date?: string | null;         // YYYY-MM-DD
   current_market_value?: number | null;
@@ -48,6 +49,7 @@ export async function createProperty(input: CreatePropertyInput): Promise<Proper
       property_type:       input.property_type,
       asset_class:         input.asset_class          ?? assetClassFromPropertyType(input.property_type),
       property_usage:      input.property_usage       ?? null,
+      is_primary_residence: input.is_primary_residence ?? false,
       purchase_price:      input.purchase_price       ?? null,
       purchase_date:       input.purchase_date        ?? null,
       current_market_value: input.current_market_value ?? null,

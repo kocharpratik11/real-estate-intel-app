@@ -23,6 +23,7 @@ export default function AddPropertyScreen() {
   const [state,         setState]         = useState('');
   const [zip,           setZip]           = useState('');
   const [propType,      setPropType]      = useState<Property['property_type']>('sfh');
+  const [isPrimaryResidence, setIsPrimaryResidence] = useState(false);
   const [purchasePrice, setPurchasePrice] = useState('');
   const [loading,       setLoading]       = useState(false);
   const [error,         setError]         = useState<string | null>(null);
@@ -56,6 +57,8 @@ export default function AddPropertyScreen() {
         state:         state.trim().toUpperCase().slice(0, 2),
         zip:           zip.trim() || null,
         property_type: propType,
+        property_usage: isPrimaryResidence ? 'owner_occupied' : undefined,
+        is_primary_residence: isPrimaryResidence,
         unit_count:    1,
         purchase_price: purchase,
       });
@@ -166,6 +169,27 @@ export default function AddPropertyScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
+          </View>
+
+          {/* Ownership */}
+          <Text style={styles.fieldLabel}>OWNERSHIP</Text>
+          <View style={styles.typeGrid}>
+            <TouchableOpacity
+              onPress={() => { hapticLight(); setIsPrimaryResidence(false); }}
+              style={[styles.typeBtn, !isPrimaryResidence && styles.typeBtnActive]}
+            >
+              <Text style={[styles.typeLabel, !isPrimaryResidence && styles.typeLabelActive]}>
+                Investment Property
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => { hapticLight(); setIsPrimaryResidence(true); }}
+              style={[styles.typeBtn, isPrimaryResidence && styles.typeBtnActive]}
+            >
+              <Text style={[styles.typeLabel, isPrimaryResidence && styles.typeLabelActive]}>
+                Primary Residence
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Purchase Price */}
