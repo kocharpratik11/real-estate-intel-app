@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { router } from 'expo-router';
 import { getPrimaryResidenceDetail } from '@/lib/api/properties';
+import { getExpenses } from '@/lib/api/expenses';
 import { refreshValuation } from '@/lib/api/valuations';
 import { computeMortgageBalance, calcPaymentsMade } from '@/lib/utils/mortgage';
 import { openPropertyOnWeb } from '@/lib/utils/propertySetup';
@@ -8,6 +10,24 @@ import { supabase } from '@/lib/supabase';
 import { hapticSuccess, hapticError } from '@/lib/haptics';
 import { Colors } from '@/constants/colors';
 import { Card } from '@/components/ui/Card';
+import { LogExpenseSheet } from '@/components/expenses/LogExpenseSheet';
+import { TicketSheet } from '@/components/maintenance/TicketSheet';
+import type { Expense, MaintenanceEvent } from '@/types';
+
+const PRIORITY_COLOR: Record<string, string> = {
+  urgent: Colors.red,
+  high:   Colors.yellow,
+  normal: Colors.textMuted,
+  low:    Colors.textMuted,
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  requested:   'Requested',
+  scheduled:   'Scheduled',
+  in_progress: 'In Progress',
+  completed:   'Completed',
+  cancelled:   'Cancelled',
+};
 
 type Loan = {
   id: string;
@@ -43,6 +63,11 @@ export function PrimaryResidenceDetail({ propertyId }: Props) {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [isOwner,     setIsOwner]     = useState(false);
   const [refreshingValuation, setRefreshingValuation] = useState(false);
+  const [expenses,    setExpenses]    = useState<Expense[]>([]);
+  const [maintenance, setMaintenance] = useState<MaintenanceEvent[]>([]);
+  const [showExpense, setShowExpense] = useState(false);
+  const [showTicket,  setShowTicket]  = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<MaintenanceEvent | null>(null);
 
   const load = useCallback(async () => {
     const data = await getPrimaryResidenceDetail(propertyId).catch(() => null);
@@ -50,7 +75,23 @@ export function PrimaryResidenceDetail({ propertyId }: Props) {
     setLoading(false);
   }, [propertyId]);
 
-  useEffect(() => { load(); }, [load]);
+  const loadExpenses = useCallback(async () => {
+    const data = await getExpenses(propertyId, { limit: 10 }).catch(() => []);
+    setExpenses(data);
+  }, [propertyId]);
+
+  const loadMaintenance = useCallback(async () => {
+    const { data } = await supabase
+      .from('maintenance_events')
+      .select('id, property_id, unit_id, title, description, category, status, priority, requested_date, scheduled_date, estimated_cost, actual_cost')
+      .eq('property_id', propertyId)
+      .neq('status', 'cancelled')
+      .order('requested_date', { ascending: false })
+      .limit(10);
+    setMaintenance((data ?? []) as MaintenanceEvent[]);
+  }, [propertyId]);
+
+  useEffect(() => { load(); loadExpenses(); loadMaintenance(); }, [load, loadExpenses, loadMaintenance]);
 
   useEffect(() => {
     (async () => {
@@ -137,6 +178,8 @@ export function PrimaryResidenceDetail({ propertyId }: Props) {
   const showEquityOpportunity = extractableEquity > 50_000 && ltv < 80;
 
   const documents: Doc[] = ((property.documents ?? []) as Doc[]);
+  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+  const openTickets = maintenance.filter(m => m.status !== 'completed').length;
 
   return (
     <View style={styles.container}>
@@ -299,6 +342,108 @@ export function PrimaryResidenceDetail({ propertyId }: Props) {
         )}
       </Card>
 
+      {/* Expenses — property tax, insurance, repairs, etc. */}
+      <Card style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <View>
+            <Text style={styles.sectionTitle}>Expenses</Text>
+            <Text style={styles.sectionSub}>{expenses.length} records  •  {fmt(totalExpenses)} total</Text>
+          </View>
+          <TouchableOpacity onPress={() => setShowExpense(true)} style={styles.addBtn} activeOpacity={0.8}>
+            <Text style={styles.addBtnLabel}>+ Log</Text>
+          </TouchableOpacity>
+        </View>
+        {expenses.length === 0 ? (
+          <TouchableOpacity style={styles.emptyState} onPress={() => setShowExpense(true)} activeOpacity={0.8}>
+            <Text style={styles.emptyIcon}>🧾</Text>
+            <Text style={styles.emptyTitle}>No expenses logged</Text>
+            <Text style={styles.emptySub}>Tap to log property tax, insurance, repairs & more</Text>
+          </TouchableOpacity>
+        ) : (
+          expenses.map(e => (
+            <View key={e.id} style={styles.docRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.loanValue} numberOfLines={1}>{e.description || e.category}</Text>
+                <Text style={styles.docDate}>{fmtDate(e.expense_date)}</Text>
+              </View>
+              <Text style={styles.loanValue}>{fmtOpt(e.amount)}</Text>
+            </View>
+          ))
+        )}
+        <TouchableOpacity
+          style={styles.ctaRow}
+          onPress={() => router.push({ pathname: '/(app)/portfolio/[id]/expenses', params: { id: propertyId } })}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.ctaTitle}>View Expense Ledger</Text>
+          <Text style={styles.chevron}>›</Text>
+        </TouchableOpacity>
+      </Card>
+
+      {/* Maintenance */}
+      <Card style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <View>
+            <Text style={styles.sectionTitle}>Maintenance</Text>
+            <Text style={styles.sectionSub}>{openTickets} open  •  {maintenance.length} total</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => { setSelectedTicket(null); setShowTicket(true); }}
+            style={styles.addBtn}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.addBtnLabel}>+ New</Text>
+          </TouchableOpacity>
+        </View>
+        {maintenance.length === 0 ? (
+          <TouchableOpacity
+            style={styles.emptyState}
+            onPress={() => { setSelectedTicket(null); setShowTicket(true); }}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.emptyIcon}>🔧</Text>
+            <Text style={styles.emptyTitle}>No maintenance tickets</Text>
+            <Text style={styles.emptySub}>Tap to submit your first ticket</Text>
+          </TouchableOpacity>
+        ) : (
+          maintenance.map(m => (
+            <TouchableOpacity
+              key={m.id}
+              style={styles.maintenanceRow}
+              onPress={() => { setSelectedTicket(m); setShowTicket(true); }}
+              activeOpacity={0.8}
+            >
+              <View style={styles.maintenanceTop}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.maintenanceTitle}>{m.title}</Text>
+                  {m.description && (
+                    <Text style={styles.maintenanceDesc} numberOfLines={2}>{m.description}</Text>
+                  )}
+                </View>
+                <View style={[styles.priorityPill, { borderColor: PRIORITY_COLOR[m.priority] }]}>
+                  <Text style={[styles.priorityText, { color: PRIORITY_COLOR[m.priority] }]}>
+                    {m.priority.toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.maintenanceMeta}>
+                <Text style={styles.maintenanceStatus}>{STATUS_LABEL[m.status] ?? m.status}</Text>
+                <Text style={styles.maintenanceDot}>·</Text>
+                <Text style={styles.maintenanceDate}>
+                  {new Date(m.requested_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </Text>
+                {m.estimated_cost != null && (
+                  <>
+                    <Text style={styles.maintenanceDot}>·</Text>
+                    <Text style={styles.maintenanceCost}>Est. {fmt(m.estimated_cost)}</Text>
+                  </>
+                )}
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
+      </Card>
+
       {/* Documents */}
       {documents.length > 0 && (
         <Card style={styles.section}>
@@ -325,6 +470,23 @@ export function PrimaryResidenceDetail({ propertyId }: Props) {
         </View>
         <Text style={styles.webCtaArrow}>›</Text>
       </TouchableOpacity>
+
+      {/* CRUD sheets */}
+      <LogExpenseSheet
+        propertyId={propertyId}
+        propertyName={property.name ?? ''}
+        visible={showExpense}
+        onClose={() => setShowExpense(false)}
+        onSuccess={() => { setShowExpense(false); loadExpenses(); }}
+      />
+      <TicketSheet
+        propertyId={propertyId}
+        propertyName={property.name ?? ''}
+        ticket={selectedTicket}
+        visible={showTicket}
+        onClose={() => { setShowTicket(false); setSelectedTicket(null); }}
+        onSuccess={() => { setShowTicket(false); setSelectedTicket(null); loadMaintenance(); }}
+      />
     </View>
   );
 }
@@ -420,4 +582,61 @@ const styles = StyleSheet.create({
   webCtaTitle: { color: Colors.text, fontSize: 13, fontWeight: '600' },
   webCtaSub:   { color: Colors.indigo, fontSize: 11, marginTop: 2 },
   webCtaArrow: { color: Colors.textMuted, fontSize: 18 },
+
+  // Expenses / Maintenance
+  sectionHeaderRow: {
+    flexDirection:  'row',
+    justifyContent: 'space-between',
+    alignItems:     'flex-end',
+  },
+  sectionSub: { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
+  ctaRow: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    justifyContent:  'space-between',
+    backgroundColor: Colors.bg,
+    borderRadius:    12,
+    borderWidth:     1,
+    borderColor:     Colors.border,
+    padding:         14,
+    marginTop:       8,
+  },
+  chevron:  { color: Colors.textMuted, fontSize: 18 },
+  ctaTitle: { color: Colors.text, fontSize: 13, fontWeight: '600' },
+  addBtn: {
+    backgroundColor:   Colors.indigo,
+    borderRadius:      8,
+    paddingHorizontal: 12,
+    paddingVertical:   6,
+  },
+  addBtnLabel: { color: Colors.white, fontSize: 12, fontWeight: '700' },
+  emptyState: { alignItems: 'center', paddingTop: 32, gap: 8, paddingBottom: 12 },
+  emptyIcon:  { fontSize: 32 },
+  emptyTitle: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  emptySub:   { fontSize: 12, color: Colors.textMuted, textAlign: 'center', lineHeight: 18, paddingHorizontal: 16 },
+
+  maintenanceRow: {
+    backgroundColor: Colors.bg,
+    borderRadius:    12,
+    borderWidth:     1,
+    borderColor:     Colors.border,
+    padding:         14,
+    marginBottom:    8,
+  },
+  maintenanceTop:  { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  maintenanceTitle:{ color: Colors.text, fontSize: 13, fontWeight: '600', marginBottom: 2 },
+  maintenanceDesc: { color: Colors.textMuted, fontSize: 11, lineHeight: 16 },
+  priorityPill: {
+    borderRadius:      6,
+    borderWidth:       1,
+    paddingHorizontal: 6,
+    paddingVertical:   2,
+    flexShrink:        0,
+  },
+  priorityText:     { fontSize: 8, fontWeight: '700', letterSpacing: 0.4 },
+  maintenanceMeta:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  maintenanceStatus:{ color: Colors.textMuted, fontSize: 10 },
+  maintenanceDot:   { color: Colors.border, fontSize: 10 },
+  maintenanceDate:  { color: Colors.textMuted, fontSize: 10 },
+  maintenanceCost:  { color: Colors.textMuted, fontSize: 10 },
 });
