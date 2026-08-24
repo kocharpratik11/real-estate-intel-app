@@ -10,9 +10,11 @@ import { supabase } from '@/lib/supabase';
 import { getPortfolioSummary } from '@/lib/api/properties';
 import { generateAlerts } from '@/lib/api/alerts';
 import { getCachedInsights, refreshInsights } from '@/lib/api/insights';
+import { getPreferences } from '@/lib/api/preferences';
 import { AIHeroCard, Insight } from '@/components/home/AIHeroCard';
 import { QuickStats } from '@/components/home/QuickStats';
 import { RecentActivity, ActivityItem } from '@/components/home/RecentActivity';
+import { PreferencesSheet } from '@/components/onboarding/PreferencesSheet';
 import { Colors, Gradients } from '@/constants/colors';
 import type { PortfolioSummary, AppAlert } from '@/types';
 
@@ -29,6 +31,10 @@ const dismissedInsightIds = new Set<string>();
 // screen already reads the live cached row via getCachedInsights() on every
 // focus, so re-generating the AI text that often is pure waste.
 const insightsRefreshedThisSession = new Set<string>();
+
+// Workspaces we've already checked onboarding_completed for this session — avoids
+// re-querying user_preferences (and re-flashing the sheet mid-scroll) on every tab focus.
+const onboardingCheckedThisSession = new Set<string>();
 
 function greetingFor(name: string): string {
   const hour = new Date().getHours();
@@ -104,6 +110,7 @@ export default function HomeScreen() {
   const [actionAlerts,  setActionAlerts]  = useState<AppAlert[]>([]);
   const [activity,      setActivity]      = useState<ActivityItem[]>([]);
   const [refreshing,    setRefreshing]    = useState(false);
+  const [showPrefsSheet, setShowPrefsSheet] = useState(false);
   const activeWsId = useRef<string | null>(null);
 
   const load = useCallback(async (opts?: { forceInsightsRefresh?: boolean }) => {
@@ -127,6 +134,13 @@ export default function HomeScreen() {
     }
 
     if (!wsId) return;
+
+    if (!onboardingCheckedThisSession.has(wsId)) {
+      onboardingCheckedThisSession.add(wsId);
+      getPreferences().then(p => {
+        if (!p.onboarding_completed) setShowPrefsSheet(true);
+      }).catch(() => {});
+    }
 
     const now   = new Date();
     const year  = now.getFullYear();
@@ -293,6 +307,8 @@ export default function HomeScreen() {
 
         <View style={{ height: insets.bottom + 40 }} />
       </ScrollView>
+
+      <PreferencesSheet visible={showPrefsSheet} onDone={() => setShowPrefsSheet(false)} />
     </View>
   );
 }

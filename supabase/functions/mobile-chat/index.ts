@@ -130,8 +130,8 @@ interface PropertyContext {
   openMaintenanceTickets: { title: string; status: string; priority: string }[];
 }
 
-async function buildPortfolioContext(admin: any, workspaceId: string) {
-  const [{ data: properties }, { data: recentPayments }, { data: openMaintenance }] = await Promise.all([
+async function buildPortfolioContext(admin: any, workspaceId: string, userId: string) {
+  const [{ data: properties }, { data: recentPayments }, { data: openMaintenance }, { data: prefsRow }, { data: memoryRow }] = await Promise.all([
     admin
       .from('properties')
       .select(`
@@ -166,6 +166,17 @@ async function buildPortfolioContext(admin: any, workspaceId: string) {
       .select('property_id, title, status, priority')
       .eq('workspace_id', workspaceId)
       .in('status', ['requested', 'scheduled', 'in_progress']),
+    admin
+      .from('user_preferences')
+      .select('risk_tolerance, primary_goal, communication_style, topics_to_avoid')
+      .eq('user_id', userId)
+      .eq('workspace_id', workspaceId)
+      .single(),
+    admin
+      .from('conversation_memory')
+      .select('last_summary, decisions_being_considered, unresolved_questions, user_shared_context, do_not_bring, total_conversations')
+      .eq('workspace_id', workspaceId)
+      .single(),
   ]);
 
   const today = new Date();
@@ -278,25 +289,126 @@ async function buildPortfolioContext(admin: any, workspaceId: string) {
       openMaintenanceCount: maintList.length,
     },
     properties: contextProperties,
+    preferences: prefsRow
+      ? {
+          riskTolerance: prefsRow.risk_tolerance,
+          primaryGoal: prefsRow.primary_goal,
+          communicationStyle: prefsRow.communication_style,
+          topicsToAvoid: prefsRow.topics_to_avoid || [],
+        }
+      : null,
+    memory: memoryRow
+      ? {
+          lastSummary: memoryRow.last_summary,
+          decisionsBeingConsidered: memoryRow.decisions_being_considered || [],
+          unresolvedQuestions: memoryRow.unresolved_questions || [],
+          userSharedContext: memoryRow.user_shared_context || [],
+          doNotBring: memoryRow.do_not_bring || [],
+          totalConversations: memoryRow.total_conversations || 0,
+        }
+      : null,
   };
 }
 
 function buildSystemPrompt(context: Awaited<ReturnType<typeof buildPortfolioContext>>): string {
-  return `You are Asset Brain, an AI assistant embedded in a real estate portfolio management mobile app. You have complete, accurate knowledge of the user's portfolio as of ${context.asOf}.
+  return `You are Asset Brain, an educational real estate data analyst embedded in a real estate portfolio management mobile app. You have complete, accurate knowledge of the user's portfolio as of ${context.asOf}. You provide factual analysis and hypothetical scenarios only — you do NOT give financial, investment, tax, or legal advice.
 
 CRITICAL RULES:
 1. Only state financial figures that appear in the portfolio context below. Never estimate or calculate values from memory.
 2. Always specify which property you are referring to by name.
-3. Give clear recommendations — do not hedge to the point of uselessness. State assumptions explicitly.
+3. Never say "you should" or "I recommend". Present specific, data-driven scenarios and their numbers clearly — do not hedge to the point of uselessness — but frame them with conditional language: "historically", "illustratively", "if", "based on the data". State assumptions explicitly. For any question about an actual decision (buy, sell, refinance, etc.), close by noting a licensed financial advisor, tax professional, or real estate attorney can evaluate it against their full situation.
 4. If a question requires data not in the context, say so clearly.
 5. Keep responses concise and mobile-friendly — short paragraphs, numbers not prose. Investors are busy.
 6. Never give tax advice. Say "consult a tax professional" for tax-specific questions.
-7. Never guarantee returns or market performance.
+7. Never guarantee returns or market performance. Historical returns are past performance and do not predict future results.
 8. Answer ONLY the current question. Do not repeat or re-summarize previous answers.
 9. Properties with type "primary_residence" are the user's personal home, not an investment. Never suggest selling, converting, or redeploying equity from a primary residence unless the user explicitly asks about it. Cash flow and ROE are null for these properties by design — that means "not applicable," not a problem to flag.
+10. If "preferences" below is not null: match communicationStyle ("concise" = 3-5 sentences max unless asked for more; "detailed" = full explanations welcome). Never bring up anything listed in preferences.topicsToAvoid or memory.doNotBring.
+11. If "memory" below is not null and memory.lastSummary is set, you may naturally reference what was discussed last session if relevant — but do not force a recap into every answer, and never repeat memory.lastSummary verbatim.
 
 PORTFOLIO CONTEXT:
 ${JSON.stringify(context, null, 2)}`;
+}
+
+// ─── Conversation memory ────────────────────────────────────────────────────────────────────
+// Mirrors the web app's src/lib/ai/conversation-memory.ts. Deliberately AWAITED before the
+// response is returned rather than true fire-and-forget: unlike the web app's long-running
+// Next.js server, a Supabase Edge Function's Deno isolate isn't guaranteed to keep running
+// after the response is sent, so a detached async call here could simply never complete.
+// Uses a small, cheap prompt (low max_tokens) so this doesn't meaningfully add to chat cost.
+
+async function updateConversationMemory(
+  admin: any,
+  anthropicKey: string,
+  workspaceId: string,
+  userMessage: string,
+  assistantMessage: string,
+  existingMemory: Awaited<ReturnType<typeof buildPortfolioContext>>['memory'],
+  isNewConversation: boolean,
+): Promise<void> {
+  try {
+    const summaryPrompt = `Analyze this single chat exchange from a real estate portfolio app and return ONLY valid JSON, no other text, no markdown fences:
+{
+  "summary": "1-2 sentence summary of what was discussed, or null if nothing worth remembering",
+  "newDecision": "a decision the user appears to be considering, or null",
+  "newOpenQuestion": "an unresolved question the user raised, or null",
+  "newUserContext": "personal context the user shared (e.g. 'planning to retire in 5 years'), or null",
+  "newDoNotBring": "a topic the user explicitly asked not to discuss again, or null"
+}
+
+Previous summary: ${existingMemory?.lastSummary ?? 'None — first conversation.'}
+
+User: ${userMessage}
+Assistant: ${assistantMessage}`;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': anthropicKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: summaryPrompt }],
+      }),
+    });
+    if (!res.ok) return;
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text ?? '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return;
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    const dedupe = (arr: string[], cap: number) => [...new Set(arr)].slice(-cap);
+
+    await admin.from('conversation_memory').upsert(
+      {
+        workspace_id: workspaceId,
+        last_summary: parsed.summary ?? existingMemory?.lastSummary ?? null,
+        decisions_being_considered: parsed.newDecision
+          ? dedupe([...(existingMemory?.decisionsBeingConsidered ?? []), parsed.newDecision], 20)
+          : existingMemory?.decisionsBeingConsidered ?? [],
+        unresolved_questions: parsed.newOpenQuestion
+          ? dedupe([...(existingMemory?.unresolvedQuestions ?? []), parsed.newOpenQuestion], 20)
+          : existingMemory?.unresolvedQuestions ?? [],
+        user_shared_context: parsed.newUserContext
+          ? dedupe([...(existingMemory?.userSharedContext ?? []), parsed.newUserContext], 30)
+          : existingMemory?.userSharedContext ?? [],
+        do_not_bring: parsed.newDoNotBring
+          ? dedupe([...(existingMemory?.doNotBring ?? []), parsed.newDoNotBring], 30)
+          : existingMemory?.doNotBring ?? [],
+        last_session_date: new Date().toISOString(),
+        total_conversations: (existingMemory?.totalConversations ?? 0) + (isNewConversation ? 1 : 0),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'workspace_id' },
+    );
+  } catch (err) {
+    console.error('[mobile-chat] memory update failed', err);
+  }
 }
 
 // ─── Edge Function entrypoint ───────────────────────────────────────────────────────────────
@@ -350,6 +462,7 @@ Deno.serve(async (req) => {
 
     // Resolve or create conversation ─────────────────────────────────────────
     let convId = incomingConvId;
+    const isNewConversation = !convId;
     if (!convId) {
       const { data: conv, error: convErr } = await admin
         .from('chat_conversations')
@@ -370,7 +483,7 @@ Deno.serve(async (req) => {
 
     // Build full portfolio context — includes financing_structures (loans/mortgages),
     // equity, ROE, leases, tenants and recent rent history per property.
-    const context = await buildPortfolioContext(admin, workspaceId);
+    const context = await buildPortfolioContext(admin, workspaceId, user.id);
     const systemPrompt = buildSystemPrompt(context);
 
     // Save user message ────────────────────────────────────────────────────────
@@ -418,6 +531,18 @@ Deno.serve(async (req) => {
 
     // Update conversation timestamp
     await admin.from('chat_conversations').update({ updated_at: new Date().toISOString() }).eq('id', convId);
+
+    // Update cross-session memory — awaited (see comment on updateConversationMemory) so it
+    // must complete before the isolate is allowed to return, but never blocks/fails the reply.
+    await updateConversationMemory(
+      admin,
+      anthropicKey,
+      workspaceId,
+      message,
+      reply,
+      context.memory,
+      isNewConversation,
+    );
 
     return new Response(JSON.stringify({ reply, conversationId: convId }), {
       headers: { ...CORS, 'Content-Type': 'application/json' },
