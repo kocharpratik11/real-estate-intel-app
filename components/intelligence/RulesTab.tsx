@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import {
-  getPortfolioRulesData, dismissInsight, getDismissedInsightIds, insightIdFor,
+  getPortfolioRulesData, getPropertyInsightItems, sortActionItems,
+  dismissInsight, getDismissedInsightIds, insightIdFor,
   type RulesActionItem,
 } from '@/lib/api/rules';
 import { refreshInsights } from '@/lib/api/insights';
@@ -41,12 +42,13 @@ export function RulesTab({ workspaceId }: Props) {
 
   const load = async () => {
     if (!workspaceId) return;
-    const [data, dismissed] = await Promise.all([
+    const [data, propertyInsightItems, dismissed] = await Promise.all([
       getPortfolioRulesData(workspaceId),
+      getPropertyInsightItems(workspaceId),
       getDismissedInsightIds(workspaceId),
     ]);
     if (data) {
-      setItems(data.actionQueue);
+      setItems(sortActionItems([...data.actionQueue, ...propertyInsightItems]));
       setBriefing(data.briefingDaily ?? data.briefingWeekly ?? null);
       setComputedAt(data.computedAt);
       setIsStale(data.isStale);

@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { getPortfolioSummary } from '@/lib/api/properties';
 import { generateAlerts } from '@/lib/api/alerts';
 import { getCachedInsights, refreshInsights } from '@/lib/api/insights';
+import { getPropertyInsightItems, selectTopInsight, type RulesActionItem } from '@/lib/api/rules';
 import { getPreferences } from '@/lib/api/preferences';
 import { AIHeroCard, Insight } from '@/components/home/AIHeroCard';
 import { QuickStats } from '@/components/home/QuickStats';
@@ -88,11 +89,27 @@ function alertToInsight(a: AppAlert): Insight {
   };
 }
 
-function buildBriefingCards(claudeText: string | null, alerts: AppAlert[], summary: PortfolioSummary | null): Insight[] {
+function propertyInsightToBriefingInsight(item: RulesActionItem): Insight {
+  return {
+    id:            `ai-narrative-${item.propertyId}`,
+    title:         item.title,
+    body:          item.description,
+    primaryAction: item.action ?? 'View Property',
+    onPrimary:     () => router.push({ pathname: '/(app)/portfolio/[id]', params: { id: item.propertyId } }),
+  };
+}
+
+function buildBriefingCards(
+  claudeText: string | null,
+  alerts: AppAlert[],
+  summary: PortfolioSummary | null,
+  topPropertyInsight: RulesActionItem | null,
+): Insight[] {
   const criticalAlerts = alerts.filter(a => a.severity === 'emergency');
   const cards: Insight[] = [
     ...(claudeText ? [makeClaudeBriefingInsight(claudeText)] : []),
     ...criticalAlerts.map(alertToInsight),
+    ...(topPropertyInsight ? [propertyInsightToBriefingInsight(topPropertyInsight)] : []),
   ].filter(c => !dismissedInsightIds.has(c.id));
 
   const capped = cards.slice(0, MAX_BRIEFING_CARDS);
@@ -146,18 +163,19 @@ export default function HomeScreen() {
     const year  = now.getFullYear();
     const month = now.getMonth() + 1;
 
-    const [sum, alerts, propsRes, cached] = await Promise.all([
+    const [sum, alerts, propsRes, cached, propertyInsightItems] = await Promise.all([
       getPortfolioSummary(wsId, year, month).catch(() => null),
       generateAlerts(wsId, year, month).catch(() => []),
       supabase.from('properties').select('id').eq('workspace_id', wsId),
       getCachedInsights(wsId).catch(() => null),
+      getPropertyInsightItems(wsId).catch(() => []),
     ]);
 
     if (sum) setSummary(sum);
     setActionAlerts(alerts.slice(0, 6));
 
     const claudeText = cached?.briefing_daily ?? null;
-    setInsights(buildBriefingCards(claudeText, alerts, sum));
+    setInsights(buildBriefingCards(claudeText, alerts, sum, selectTopInsight(propertyInsightItems)));
     setInsightIdx(0);
 
     // Background refresh: rebuilds portfolio_insights via Edge Function (fires and forgets).

@@ -22,6 +22,8 @@ import { CollectionBarChart, type MonthlyCollection } from '@/components/charts/
 import { PLBarChart } from '@/components/charts/PLBarChart';
 import { getPLSummary, type MonthlyPL } from '@/lib/api/financials';
 import { MAINTENANCE_CATEGORIES } from '@/lib/api/maintenance';
+import { SystemSheet } from '@/components/maintenance/SystemSheet';
+import { getPropertySystems, urgencyFor, SYSTEM_TYPES, type PropertySystem, type Urgency } from '@/lib/api/propertySystems';
 import { PrimaryResidenceDetail } from '@/components/property/PrimaryResidenceDetail';
 import type { Lease, Expense, MaintenanceEvent } from '@/types';
 import type { HealthScoreResult } from '@/lib/api/healthScore';
@@ -54,6 +56,13 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled:   'Cancelled',
 };
 
+const URGENCY_BADGE: Record<Urgency, { variant: 'active' | 'info' | 'warning' | 'emergency'; label: string }> = {
+  ok:      { variant: 'active',    label: 'OK' },
+  monitor: { variant: 'info',      label: 'Monitor' },
+  plan:    { variant: 'warning',   label: 'Plan Replacement' },
+  urgent:  { variant: 'emergency', label: 'Replace Soon' },
+};
+
 export default function PropertyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
@@ -62,6 +71,7 @@ export default function PropertyDetailScreen() {
   const [leases,      setLeases]      = useState<Lease[]>([]);
   const [expenses,    setExpenses]    = useState<Expense[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceEvent[]>([]);
+  const [systems,     setSystems]     = useState<PropertySystem[]>([]);
   const [healthScore, setHealthScore] = useState<HealthScoreResult | null>(null);
   const [metrics,     setMetrics]     = useState<PropertyMetrics | null>(null);
   const [tab,         setTab]         = useState<Tab>('units');
@@ -70,6 +80,8 @@ export default function PropertyDetailScreen() {
   const [showExpense,   setShowExpense]   = useState(false);
   const [showTicket,    setShowTicket]    = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<MaintenanceEvent | null>(null);
+  const [showSystem,    setShowSystem]    = useState(false);
+  const [selectedSystem, setSelectedSystem] = useState<PropertySystem | null>(null);
   const [chartData,     setChartData]     = useState<MonthlyCollection[]>([]);
   const [plData,        setPLData]        = useState<MonthlyPL[]>([]);
   const [workspaceId,   setWorkspaceId]   = useState<string | null>(null);
@@ -178,12 +190,22 @@ export default function PropertyDetailScreen() {
     setMaintenance((data ?? []) as MaintenanceEvent[]);
   }, [id]);
 
+  const loadSystems = useCallback(async () => {
+    if (!id) return;
+    try {
+      setSystems(await getPropertySystems(id));
+    } catch {
+      setSystems([]);
+    }
+  }, [id]);
+
   useEffect(() => {
     const now = new Date();
     Promise.all([
       load(),
       loadExpenses(),
       loadMaintenance(),
+      loadSystems(),
       loadChartData(),
       id
         ? getPropertyHealthScore(id, now.getFullYear(), now.getMonth() + 1)
@@ -191,27 +213,27 @@ export default function PropertyDetailScreen() {
             .catch(() => null)
         : Promise.resolve(null),
     ]).finally(() => setLoading(false));
-  }, [load, loadExpenses, loadMaintenance, loadChartData]);
+  }, [load, loadExpenses, loadMaintenance, loadSystems, loadChartData]);
 
   useFocusEffect(useCallback(() => {
     if (!loading) {
       load();
       if (tab === 'expenses') loadExpenses();
-      if (tab === 'maintenance') loadMaintenance();
+      if (tab === 'maintenance') { loadMaintenance(); loadSystems(); }
     }
-  }, [loading, tab, load, loadExpenses, loadMaintenance]));
+  }, [loading, tab, load, loadExpenses, loadMaintenance, loadSystems]));
 
   // Load tab data on demand when switching tabs
   const onTabPress = (t: Tab) => {
     setTab(t);
     if (t === 'expenses')    loadExpenses();
-    if (t === 'maintenance') loadMaintenance();
+    if (t === 'maintenance') { loadMaintenance(); loadSystems(); }
     if (t === 'rent')        loadChartData();
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([load(), loadExpenses(), loadMaintenance()]);
+    await Promise.all([load(), loadExpenses(), loadMaintenance(), loadSystems()]);
     setRefreshing(false);
   };
 
@@ -503,6 +525,54 @@ export default function PropertyDetailScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
               <View>
+                <Text style={styles.sectionLabel}>SYSTEMS</Text>
+                <Text style={styles.sectionSub}>Ages Asset Brain uses to flag replacements early</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => { setSelectedSystem(null); setShowSystem(true); }}
+                style={styles.addBtn}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.addBtnLabel}>+ Add</Text>
+              </TouchableOpacity>
+            </View>
+            {systems.length === 0 ? (
+              <TouchableOpacity style={styles.emptyState} onPress={() => { setSelectedSystem(null); setShowSystem(true); }} activeOpacity={0.8}>
+                <Text style={styles.emptyIcon}>⚙️</Text>
+                <Text style={styles.emptyTitle}>No systems tracked</Text>
+                <Text style={styles.emptySub}>Tap to add HVAC, roof, water heater & more</Text>
+              </TouchableOpacity>
+            ) : (
+              systems.map(s => {
+                const { urgency, pct } = urgencyFor(s);
+                const badge = URGENCY_BADGE[urgency];
+                const label = SYSTEM_TYPES.find(t => t.value === s.system_type)?.label ?? s.system_type;
+                return (
+                  <TouchableOpacity
+                    key={s.id}
+                    style={styles.systemRow}
+                    onPress={() => { setSelectedSystem(s); setShowSystem(true); }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.systemTop}>
+                      <Text style={styles.systemTitle}>{label}</Text>
+                      <Badge variant={badge.variant} label={badge.label} />
+                    </View>
+                    <Text style={styles.systemSub}>
+                      {s.installed_date
+                        ? `Installed ${new Date(s.installed_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}  •  ${pct}% through expected lifespan`
+                        : 'Install date not set'}
+                    </Text>
+                    {s.replacement_cost_estimate != null && (
+                      <Text style={styles.systemSub}>Est. replacement: {fmt(s.replacement_cost_estimate)}</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })
+            )}
+
+            <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
+              <View>
                 <Text style={styles.sectionLabel}>MAINTENANCE</Text>
                 <Text style={styles.sectionSub}>{openTickets} open  •  {maintenance.length} total</Text>
               </View>
@@ -607,6 +677,14 @@ export default function PropertyDetailScreen() {
         visible={showTicket}
         onClose={() => { setShowTicket(false); setSelectedTicket(null); }}
         onSuccess={() => { setShowTicket(false); setSelectedTicket(null); loadMaintenance(); }}
+      />
+      <SystemSheet
+        propertyId={id ?? ''}
+        propertyName={property?.name ?? ''}
+        system={selectedSystem}
+        visible={showSystem}
+        onClose={() => { setShowSystem(false); setSelectedSystem(null); }}
+        onSuccess={() => { setShowSystem(false); setSelectedSystem(null); loadSystems(); }}
       />
     </View>
   );
@@ -787,6 +865,24 @@ const styles = StyleSheet.create({
   ctaSub:      { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
 
   // Maintenance
+  // Systems
+  systemRow: {
+    backgroundColor: Colors.card,
+    borderRadius:    12,
+    borderWidth:     1,
+    borderColor:     Colors.border,
+    padding:         14,
+    marginBottom:    8,
+    gap:             4,
+  },
+  systemTop: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+  },
+  systemTitle: { color: Colors.text, fontSize: 13, fontWeight: '600' },
+  systemSub:   { color: Colors.textMuted, fontSize: 11 },
+
   maintenanceRow: {
     backgroundColor: Colors.card,
     borderRadius:    12,

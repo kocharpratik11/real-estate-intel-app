@@ -56,26 +56,95 @@ export async function getPortfolioRulesData(workspaceId: string): Promise<RulesD
   };
 }
 
-// Mirrors the web app's selectTopInsight() in src/lib/portfolio-rules/engine.ts —
-// keep both in sync. Any item due within 30 days wins outright (soonest first);
-// otherwise falls back to severity, since actionQueue arrives already ordered
-// critical -> warning -> info by the server-side rules engine.
+// Mirrors the web app's sortInsights()/selectTopInsight() in
+// src/lib/portfolio-rules/engine.ts — keep both in sync. Any item due within
+// 30 days wins outright (soonest first); ties otherwise fall back to severity.
 const SEVERITY_ORDER: Record<RulesActionItem['severity'], number> = { critical: 0, warning: 1, info: 2 };
 const DEADLINE_URGENCY_WINDOW_DAYS = 30;
 
-export function selectTopInsight(items: RulesActionItem[]): RulesActionItem | null {
-  if (items.length === 0) return null;
+/**
+ * Sorts a merged action queue (rule-based items + property_insights AI
+ * narratives) into one consistent priority order, so the 5-item cap in
+ * RulesTab cuts off the same way regardless of which source an item came
+ * from. selectTopInsight() below is just this sort's first element.
+ */
+export function sortActionItems(items: RulesActionItem[]): RulesActionItem[] {
+  return [...items].sort((a, b) => {
+    const aUrgent = a.daysUntilDeadline != null && a.daysUntilDeadline <= DEADLINE_URGENCY_WINDOW_DAYS;
+    const bUrgent = b.daysUntilDeadline != null && b.daysUntilDeadline <= DEADLINE_URGENCY_WINDOW_DAYS;
+    if (aUrgent && bUrgent) return (a.daysUntilDeadline ?? Infinity) - (b.daysUntilDeadline ?? Infinity);
+    if (aUrgent !== bUrgent) return aUrgent ? -1 : 1;
+    return SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
+  });
+}
 
-  const withDeadline = items.filter(
-    i => i.daysUntilDeadline != null && i.daysUntilDeadline <= DEADLINE_URGENCY_WINDOW_DAYS,
-  );
-  if (withDeadline.length > 0) {
-    return [...withDeadline].sort(
-      (a, b) => (a.daysUntilDeadline ?? Infinity) - (b.daysUntilDeadline ?? Infinity),
-    )[0];
+export function selectTopInsight(items: RulesActionItem[]): RulesActionItem | null {
+  return sortActionItems(items)[0] ?? null;
+}
+
+/**
+ * Fetches property_insights (the nightly AI-narrative table populated by
+ * refresh-property-insights) for a workspace and maps each row into a
+ * RulesActionItem, mirroring the web app's property-insights.ts mapping —
+ * so RulesTab and AIHeroCard can merge these in alongside the rule-based
+ * action queue through the exact same list/dismiss/selectTopInsight path,
+ * no separate UI needed for this source.
+ */
+export async function getPropertyInsightItems(workspaceId: string): Promise<RulesActionItem[]> {
+  const { data, error } = await supabase
+    .from('property_insights')
+    .select('property_id, insight_data, expires_at, properties(name)')
+    .eq('workspace_id', workspaceId)
+    .gte('expires_at', new Date().toISOString());
+
+  if (error) {
+    console.warn('[rules] getPropertyInsightItems error:', error.message);
+    return [];
   }
 
-  return [...items].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])[0];
+  return ((data ?? []) as any[])
+    .map(mapPropertyInsightToActionItem)
+    .filter((i): i is RulesActionItem => i !== null);
+}
+
+function mapPropertyInsightToActionItem(row: {
+  property_id: string;
+  insight_data: any;
+  properties: { name: string } | null;
+}): RulesActionItem | null {
+  const d = row.insight_data;
+  if (!d) return null;
+
+  const propertyName = row.properties?.name ?? '';
+  const topMove = d.moves?.[0];
+
+  if (d.urgentAction?.exists) {
+    return {
+      propertyId:        row.property_id,
+      propertyName,
+      ruleId:            'ai_narrative',
+      title:             `AI Insight — ${propertyName}`,
+      description:       d.urgentAction.description ?? d.situationSummary ?? '',
+      severity:          d.urgentAction.daysUntilDeadline != null && d.urgentAction.daysUntilDeadline <= 30 ? 'critical' : 'warning',
+      annualImpact:      topMove?.annualImpact ?? null,
+      action:            'View Property',
+      daysUntilDeadline: d.urgentAction.daysUntilDeadline ?? null,
+    };
+  }
+
+  if (!topMove && !d.situationSummary) return null;
+
+  return {
+    propertyId:        row.property_id,
+    propertyName,
+    ruleId:            'ai_narrative',
+    title:             `AI Insight — ${propertyName}`,
+    description:       topMove?.description ?? d.situationSummary ?? '',
+    severity:          'info',
+    annualImpact:      topMove?.annualImpact ?? null,
+    action:            'View Property',
+    daysUntilDeadline: null,
+  };
 }
 
 // Stable id for a RulesActionItem, mirroring the web app's Insight.id shape
