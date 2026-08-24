@@ -11,17 +11,18 @@ type Props = {
   onDone:    () => void;
 };
 
+// Matches web's PreferencesModal.tsx exactly — same DB CHECK constraints, same copy.
 const GOALS: { value: UserPreferences['primary_goal']; label: string; sub: string }[] = [
-  { value: 'cash_flow',        label: 'Cash Flow',        sub: 'Steady monthly income from rent' },
-  { value: 'appreciation',     label: 'Appreciation',     sub: 'Long-term value growth' },
-  { value: 'tax_benefits',     label: 'Tax Benefits',     sub: 'Depreciation and deductions' },
-  { value: 'portfolio_growth', label: 'Portfolio Growth', sub: 'Acquiring more properties' },
+  { value: 'cash_flow',    label: 'Maximum Cash Flow',     sub: 'Steady monthly income from rent' },
+  { value: 'appreciation', label: 'Long-Term Appreciation', sub: 'Property value growth over time' },
+  { value: 'payoff',       label: 'Pay Off Mortgages',      sub: 'Faster debt payoff over new deals' },
+  { value: 'expand',       label: 'Grow My Portfolio',      sub: 'Acquiring more properties' },
 ];
 
 const RISK_LEVELS: { value: UserPreferences['risk_tolerance']; label: string; sub: string }[] = [
-  { value: 'conservative', label: 'Conservative', sub: 'Prefer stability over upside' },
-  { value: 'moderate',     label: 'Moderate',     sub: 'Balanced risk and reward' },
-  { value: 'aggressive',   label: 'Aggressive',   sub: 'Comfortable with more volatility' },
+  { value: 'conservative', label: 'Safety First', sub: 'I prefer guaranteed, stable returns' },
+  { value: 'moderate',     label: 'Balanced',     sub: 'Some growth, some stability' },
+  { value: 'growth',       label: 'Growth',       sub: 'I can handle volatility for higher returns' },
 ];
 
 const STYLES: { value: UserPreferences['communication_style']; label: string; sub: string }[] = [

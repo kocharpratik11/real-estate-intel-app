@@ -7,8 +7,10 @@ export type UserPreferences = {
   notify_maintenance:    boolean;
   currency:              string;   // e.g. 'USD'
   date_format:           string;   // e.g. 'MM/DD/YYYY'
-  risk_tolerance:        'conservative' | 'moderate' | 'aggressive';
-  primary_goal:          'cash_flow' | 'appreciation' | 'tax_benefits' | 'portfolio_growth';
+  // Matches the CHECK constraints on user_preferences in
+  // deploy_phase4a_intelligence_v2.sql — keep in sync with web's PreferencesModal.tsx.
+  risk_tolerance:        'conservative' | 'moderate' | 'growth' | 'real_estate_focused';
+  primary_goal:          'cash_flow' | 'appreciation' | 'payoff' | 'expand';
   communication_style:   'concise' | 'detailed';
   topics_to_avoid:       string[];
   onboarding_completed:  boolean;
