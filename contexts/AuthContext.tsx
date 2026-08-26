@@ -14,6 +14,7 @@
 import {
   createContext, useContext, useEffect, useState, useCallback, ReactNode,
 } from 'react';
+import { AppState } from 'react-native';
 import { Session, User } from '@supabase/supabase-js';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
@@ -38,7 +39,7 @@ interface AuthContextValue {
   signIn:               (email: string, password: string) => Promise<{ error: any }>;
   signUp:               (email: string, password: string) => Promise<{ error: any }>;
   signOut:              () => Promise<void>;
-  unlockWithBiometrics: () => Promise<'success' | 'cancelled' | 'unavailable'>;
+  unlockWithBiometrics: () => Promise<'success' | 'cancelled' | 'unavailable' | 'session_expired'>;
   setBiometricEnabled:  (enabled: boolean) => Promise<void>;
   setWorkspace:         (workspace: Workspace) => void;
 }
@@ -122,6 +123,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // ── Drive Supabase's auto-refresh off real foreground/background state ───
+  // Per Supabase's React Native guidance: background JS timers aren't
+  // reliable, so autoRefreshToken alone doesn't guarantee the access token
+  // gets renewed while the app is backgrounded. Without this, a session can
+  // go stale during a long background period and only surface as a failure
+  // once the app is foregrounded again — e.g. right after a biometric unlock.
+  useEffect(() => {
+    supabase.auth.startAutoRefresh();
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        supabase.auth.startAutoRefresh();
+      } else {
+        supabase.auth.stopAutoRefresh();
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   // ── Derive active workspace from user metadata whenever session changes ──
   useEffect(() => {
     const meta = session?.user?.user_metadata;
@@ -165,13 +184,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       disableDeviceFallback: false,
     });
 
-    if (result.success) {
-      setState('authenticated');
-      return 'success' as const;
+    if (!result.success) {
+      // 'cancel' covers both user cancel and fallback button
+      return 'cancelled' as const;
     }
 
-    // 'cancel' covers both user cancel and fallback button
-    return 'cancelled' as const;
+    // Face ID only proves "this is the device owner" — it says nothing about
+    // whether the underlying Supabase session is still valid. Without this
+    // check, a stale session (expired/revoked refresh token) would let the
+    // user "successfully" unlock, only to get silently bounced to the login
+    // screen moments later when the first real API call — or the auth
+    // client's own background refresh — fails and fires SIGNED_OUT.
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error || !data.session) {
+      await supabase.auth.signOut();
+      return 'session_expired' as const;
+    }
+
+    setSession(data.session);
+    setState('authenticated');
+    return 'success' as const;
   }, [biometricAvailable]);
 
   // ── Sign out ──────────────────────────────────────────────────────────────

@@ -33,6 +33,13 @@ export default function LockedScreen() {
       // Hardware not available — just unlock (shouldn't reach here normally)
       setError('Biometrics unavailable. Use password to sign in.');
     }
+    if (result === 'session_expired') {
+      // Biometrics succeeded, but the underlying session was stale and
+      // couldn't be refreshed — signOut() already ran, so the root layout
+      // will redirect to login shortly. Explain why, so it doesn't look
+      // like Face ID itself just failed.
+      setError('Your session expired. Please sign in again.');
+    }
     // 'cancelled' — user dismissed, show retry UI
   };
 
