@@ -345,7 +345,15 @@ async function buildPortfolioContext(admin: any, workspaceId: string, userId: st
     // Same cached market-comparison data (stock/REIT/bond returns, mortgage rates,
     // crypto, inflation) refresh-property-insights uses — lets chat ground answers
     // about alternatives to real estate equity in real numbers instead of guessing.
-    market: marketRow && new Date(marketRow.expires_at) > today ? marketRow.data : null,
+    // market_data_cache's own expires_at (6h) governs when the nightly job re-fetches
+    // from Alpha Vantage/FRED to respect rate limits — it's not a claim that older data
+    // is wrong. These benchmark figures don't meaningfully shift hour to hour, so chat
+    // uses a much looser 48h cutoff: without pg_cron running yet, this cache is only
+    // refreshed by manual runs, and the 6h window would make chat refuse fine data most
+    // of the day.
+    market: marketRow && (today.getTime() - new Date(marketRow.data?.fetchedAt ?? 0).getTime()) < 48 * 3600_000
+      ? marketRow.data
+      : null,
   };
 }
 
