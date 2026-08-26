@@ -25,16 +25,19 @@ import { MAINTENANCE_CATEGORIES } from '@/lib/api/maintenance';
 import { SystemSheet } from '@/components/maintenance/SystemSheet';
 import { getPropertySystems, urgencyFor, SYSTEM_TYPES, type PropertySystem, type Urgency } from '@/lib/api/propertySystems';
 import { PrimaryResidenceDetail } from '@/components/property/PrimaryResidenceDetail';
+import { IntelligenceTab } from '@/components/property/IntelligenceTab';
+import { getPropertyInsight, type PropertyInsightData } from '@/lib/api/propertyInsights';
 import type { Lease, Expense, MaintenanceEvent } from '@/types';
 import type { HealthScoreResult } from '@/lib/api/healthScore';
 
-type Tab = 'units' | 'rent' | 'equity' | 'expenses' | 'maintenance' | 'docs';
+type Tab = 'units' | 'rent' | 'equity' | 'expenses' | 'maintenance' | 'intel' | 'docs';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'units',       label: 'Units' },
   { key: 'rent',        label: 'Rent' },
   { key: 'equity',      label: 'Equity' },
   { key: 'expenses',    label: 'Expenses' },
   { key: 'maintenance', label: 'Maintenance' },
+  { key: 'intel',       label: 'AI Intel' },
   { key: 'docs',        label: 'Docs' },
 ];
 
@@ -72,6 +75,7 @@ export default function PropertyDetailScreen() {
   const [expenses,    setExpenses]    = useState<Expense[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceEvent[]>([]);
   const [systems,     setSystems]     = useState<PropertySystem[]>([]);
+  const [insight,     setInsight]     = useState<PropertyInsightData | null>(null);
   const [healthScore, setHealthScore] = useState<HealthScoreResult | null>(null);
   const [metrics,     setMetrics]     = useState<PropertyMetrics | null>(null);
   const [tab,         setTab]         = useState<Tab>('units');
@@ -199,6 +203,11 @@ export default function PropertyDetailScreen() {
     }
   }, [id]);
 
+  const loadInsight = useCallback(async () => {
+    if (!id) return;
+    setInsight(await getPropertyInsight(id).catch(() => null));
+  }, [id]);
+
   useEffect(() => {
     const now = new Date();
     Promise.all([
@@ -220,8 +229,9 @@ export default function PropertyDetailScreen() {
       load();
       if (tab === 'expenses') loadExpenses();
       if (tab === 'maintenance') { loadMaintenance(); loadSystems(); }
+      if (tab === 'intel') loadInsight();
     }
-  }, [loading, tab, load, loadExpenses, loadMaintenance, loadSystems]));
+  }, [loading, tab, load, loadExpenses, loadMaintenance, loadSystems, loadInsight]));
 
   // Load tab data on demand when switching tabs
   const onTabPress = (t: Tab) => {
@@ -229,6 +239,7 @@ export default function PropertyDetailScreen() {
     if (t === 'expenses')    loadExpenses();
     if (t === 'maintenance') { loadMaintenance(); loadSystems(); }
     if (t === 'rent')        loadChartData();
+    if (t === 'intel')       loadInsight();
   };
 
   const onRefresh = async () => {
@@ -630,6 +641,13 @@ export default function PropertyDetailScreen() {
                 </TouchableOpacity>
               ))
             )}
+          </View>
+        )}
+
+        {/* AI INTEL TAB */}
+        {tab === 'intel' && (
+          <View style={styles.section}>
+            <IntelligenceTab data={insight} />
           </View>
         )}
 

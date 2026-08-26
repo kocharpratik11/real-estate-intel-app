@@ -128,10 +128,19 @@ interface PropertyContext {
   annualPropertyTax: number | null;
   monthlyHOA: number | null;
   openMaintenanceTickets: { title: string; status: string; priority: string }[];
+  // Nightly AI narrative for this property (refresh-property-insights), if one exists —
+  // null until the first run or if it's since expired.
+  aiNarrative: {
+    situationSummary: string | null;
+    urgentAction: { description: string; daysUntilDeadline: number | null } | null;
+    moves: { title: string; description: string; annualImpact: number; timeline: string }[];
+    avoidList: { option: string; reason: string }[];
+    bottomLine: string | null;
+  } | null;
 }
 
 async function buildPortfolioContext(admin: any, workspaceId: string, userId: string) {
-  const [{ data: properties }, { data: recentPayments }, { data: openMaintenance }, { data: prefsRow }, { data: memoryRow }] = await Promise.all([
+  const [{ data: properties }, { data: recentPayments }, { data: openMaintenance }, { data: prefsRow }, { data: memoryRow }, { data: insightRows }, { data: marketRow }] = await Promise.all([
     admin
       .from('properties')
       .select(`
@@ -177,10 +186,21 @@ async function buildPortfolioContext(admin: any, workspaceId: string, userId: st
       .select('last_summary, decisions_being_considered, unresolved_questions, user_shared_context, do_not_bring, total_conversations')
       .eq('workspace_id', workspaceId)
       .single(),
+    admin
+      .from('property_insights')
+      .select('property_id, insight_data')
+      .eq('workspace_id', workspaceId)
+      .gte('expires_at', new Date().toISOString()),
+    admin
+      .from('market_data_cache')
+      .select('data, expires_at')
+      .eq('cache_key', 'market_data_v2')
+      .single(),
   ]);
 
   const today = new Date();
   const maintList = (openMaintenance ?? []) as any[];
+  const insightByPropertyId = new Map<string, any>(((insightRows ?? []) as any[]).map(r => [r.property_id, r.insight_data]));
 
   const contextProperties: PropertyContext[] = (properties ?? []).map((p: any) => {
     const isPrimary = Boolean(p.is_primary_residence);
@@ -262,6 +282,21 @@ async function buildPortfolioContext(admin: any, workspaceId: string, userId: st
       openMaintenanceTickets: maintList
         .filter(m => m.property_id === p.id)
         .map(m => ({ title: m.title, status: m.status, priority: m.priority })),
+      aiNarrative: (() => {
+        const d = insightByPropertyId.get(p.id);
+        if (!d) return null;
+        return {
+          situationSummary: d.situationSummary ?? null,
+          urgentAction: d.urgentAction?.exists
+            ? { description: d.urgentAction.description, daysUntilDeadline: d.urgentAction.daysUntilDeadline ?? null }
+            : null,
+          moves: (d.moves ?? []).map((m: any) => ({
+            title: m.title, description: m.description, annualImpact: m.annualImpact, timeline: m.timeline,
+          })),
+          avoidList: d.avoidList ?? [],
+          bottomLine: d.bottomLine ?? null,
+        };
+      })(),
     };
   });
 
@@ -307,6 +342,10 @@ async function buildPortfolioContext(admin: any, workspaceId: string, userId: st
           totalConversations: memoryRow.total_conversations || 0,
         }
       : null,
+    // Same cached market-comparison data (stock/REIT/bond returns, mortgage rates,
+    // crypto, inflation) refresh-property-insights uses — lets chat ground answers
+    // about alternatives to real estate equity in real numbers instead of guessing.
+    market: marketRow && new Date(marketRow.expires_at) > today ? marketRow.data : null,
   };
 }
 
@@ -325,6 +364,8 @@ CRITICAL RULES:
 9. Properties with type "primary_residence" are the user's personal home, not an investment. Never suggest selling, converting, or redeploying equity from a primary residence unless the user explicitly asks about it. Cash flow and ROE are null for these properties by design — that means "not applicable," not a problem to flag.
 10. If "preferences" below is not null: match communicationStyle ("concise" = 3-5 sentences max unless asked for more; "detailed" = full explanations welcome). Never bring up anything listed in preferences.topicsToAvoid or memory.doNotBring.
 11. If "memory" below is not null and memory.lastSummary is set, you may naturally reference what was discussed last session if relevant — but do not force a recap into every answer, and never repeat memory.lastSummary verbatim.
+12. "market" below is the same cached market-comparison data (stock/REIT/bond returns, mortgage rates, crypto, inflation) the nightly analysis engine uses. Use it for any question comparing this portfolio's returns to other investment vehicles (stocks, REITs, bonds, HYSA, HELOC/refi rates, etc.) instead of estimating — if it's null, say current market data isn't available rather than guessing a figure.
+13. Each property's "aiNarrative" (when not null) is that property's own pre-computed nightly analysis — situationSummary, ranked moves with dollar impact, an avoid list, and a bottom line. Treat its numbers as already-vetted data you can cite directly, same as any other field in this context. It already follows rules 1-3's legal-safe framing.
 
 PORTFOLIO CONTEXT:
 ${JSON.stringify(context, null, 2)}`;
